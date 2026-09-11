@@ -12,9 +12,20 @@ package com.itantra.speechengine.segmentation
  */
 data class SegmenterConfig(
     /**
-     * Duration of continuous non-speech audio (per VAD classification)
-     * after which an in-progress segment is finalized. This is the primary
-     * "how long a pause ends an utterance" control.
+     * Duration of continuous non-speech audio, measured from the point the
+     * VAD itself first reports non-speech ([com.itantra.speechengine.vad.VadState.SPEECH_END]
+     * / [com.itantra.speechengine.vad.VadState.SILENCE]), after which an
+     * in-progress segment is finalized.
+     *
+     * This is additive with the VAD's own end-of-speech hysteresis
+     * ([com.itantra.speechengine.vad.VadConfig.speechEndFrameCount]): while
+     * the VAD's hangover is still bridging a dip, it keeps reporting
+     * [com.itantra.speechengine.vad.VadState.SPEECH], which this segmenter
+     * treats as "still speaking" and does not count toward
+     * [silenceDurationMs]. The practical pause length before an utterance
+     * is finalized is therefore approximately
+     * `(speechEndFrameCount - 1) * frameDurationMs + silenceDurationMs`,
+     * not [silenceDurationMs] alone. Tune both values together.
      */
     val silenceDurationMs: Long = DEFAULT_SILENCE_DURATION_MS,
 
