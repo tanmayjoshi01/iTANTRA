@@ -20,9 +20,13 @@
 //   - Kotlin 2.4.20 (latest stable release, confirmed via Maven Central
 //     metadata).
 // Gradle itself is pinned via gradle/wrapper/gradle-wrapper.properties to
-// 9.7.1, the latest stable Gradle release, verified via services.gradle.org
-// and confirmed to work with this AGP/Kotlin combination by an actual
-// build run in this environment (see Phase 1 implementation report).
+// 9.5.1. The genuinely latest stable Gradle (9.7.1) was tried first, but
+// AGP 8.x depends on a Gradle-internal API ('InternalProblems') that
+// Gradle removed in 9.6.0 — Gradle's own error message names 9.5 as the
+// last compatible line for AGP 8.x, which is confirmed by Gradle's public
+// upgrade guide (docs.gradle.org, "Upgrading your build from Gradle 9.x to
+// the latest", AGP 8.x incompatibility note). 9.5.1 is the latest stable
+// patch release in that line, confirmed via services.gradle.org.
 plugins {
     id("com.android.library") version "8.13.2" apply false
     id("org.jetbrains.kotlin.android") version "2.4.20" apply false
