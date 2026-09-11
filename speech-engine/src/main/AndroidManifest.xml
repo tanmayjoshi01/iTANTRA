@@ -1,0 +1,12 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res-auto">
+
+    <!--
+         Required for AudioRecorder (com.itantra.speechengine.audio.AudioRecorder)
+         to capture microphone input. This is the only permission required by
+         the speech-engine module in Phase 1. Requesting this permission from
+         the user at runtime is the responsibility of the application module
+         that consumes this library.
+    -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+</manifest>
