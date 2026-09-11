@@ -233,15 +233,15 @@ Other contributors are not required to match this configuration; any machine mee
 
 ## Getting Started
 
-Project initialization is currently in progress. No Android/Gradle project exists in this repository yet, so there is no build command to run.
-
-The only setup step currently available:
+A Gradle project now exists (root build files plus the `speech-engine` module). It has not yet been built successfully in every development environment: doing so requires an Android SDK with the `platforms;android-36` and a matching `build-tools` package installed, which is not assumed to be present and is not installed automatically by any script in this repository. See the `speech-engine` module's own notes (or ask a maintainer) for the exact `sdkmanager` commands if a build fails with an "SDK location not found" or missing-platform error.
 
 ```bash
 git clone https://github.com/tanmayjoshi01/iTANTRA.git
+cd iTANTRA
+./gradlew :speech-engine:testDebugUnitTest   # requires the Android SDK described above
 ```
 
-Once the Android project is initialized, this section will be updated with actual build, run, and test commands corresponding to files present in the repository. Instructions will not be published here ahead of the code they describe.
+`app/` (the Android application module) does not exist yet; there is no installable app to run.
 
 ## Repository Structure
 
