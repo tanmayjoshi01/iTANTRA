@@ -121,8 +121,9 @@ Neither mode is implemented yet.
 |---|---|
 | Environment setup | In Progress |
 | Android application | Planned |
-| Audio pipeline | Planned |
-| VAD | Planned |
+| Audio pipeline (capture, framing) | Implemented (Phase 1 baseline; unverified on a physical device — see Limitations) |
+| VAD | Implemented (Phase 1 baseline: energy + zero-crossing-rate detector; not yet benchmarked for accuracy) |
+| Speech segmentation | Implemented (Phase 1 baseline: silence/max-duration-based utterance segmentation) |
 | Offline STT | Under Evaluation |
 | Offline TTS | Under Evaluation |
 | Device-to-device transport (Wi-Fi Direct) | Planned |
@@ -134,7 +135,7 @@ Neither mode is implemented yet.
 | Benchmarking | Planned |
 | Two-device testing | Planned |
 
-"Under Evaluation" means candidate offline STT/TTS runtimes and models are being researched and compared; none has been selected or integrated. Nothing in this table is marked "Implemented" because no functional code currently exists in this repository.
+"Under Evaluation" means candidate offline STT/TTS runtimes and models are being researched and compared; none has been selected or integrated. "Implemented" above refers specifically to the Phase 1 audio-capture/VAD/segmentation foundation in the `speech-engine` module (see Roadmap); it is not a claim that these components have been benchmarked for accuracy, latency, or real-device behavior, or that any later phase (STT, TTS, transport, multilingual support) exists.
 
 ## Technology Stack
 
@@ -248,24 +249,32 @@ Once the Android project is initialized, this section will be updated with actua
 
 ```
 iTANTRA/
+├── settings.gradle.kts
+├── build.gradle.kts
+├── gradle.properties
+├── gradlew, gradlew.bat, gradle/wrapper/
+├── speech-engine/        # Android library module: audio capture, VAD, segmentation (Phase 1)
+│   └── src/{main,test,androidTest}/...
 └── README.md
 ```
 
+`speech-engine` has not yet been built end-to-end in this environment (see Limitations) — its JVM-testable logic (VAD, segmentation) has been compiled and unit-tested independently of Gradle/AGP; the Android-specific capture code and the module's actual Gradle build have not.
+
 ### Planned
 
-The structure below is a design target for organizing the codebase once implementation begins. It does not exist yet and is included for planning purposes only.
+The structure below is a design target for the remaining codebase. `app/` and `transport/` do not exist yet.
 
 ```
 iTANTRA/
-├── app/                  # Android application module (Kotlin, Jetpack Compose)
-├── speech-engine/        # VAD, STT, TTS integration (offline inference)
-├── transport/            # Wi-Fi Direct / Bluetooth transport abstraction
+├── app/                  # Android application module (Kotlin, Jetpack Compose) — Paras
+├── speech-engine/        # VAD (done), segmentation (done), STT/TTS integration (planned)
+├── transport/            # Wi-Fi Direct / Bluetooth transport abstraction — Paras
 ├── docs/                 # Architecture, protocol, and model documentation
 ├── benchmarks/           # Benchmark harnesses and results
 └── README.md
 ```
 
-Actual module boundaries may change once implementation starts.
+Actual module boundaries may change as implementation continues.
 
 ## Two-Phone Communication Concept
 
@@ -352,7 +361,7 @@ All phases below are planned; none is complete unless explicitly stated otherwis
 | Phase | Description | Status |
 |---|---|---|
 | Phase 0 | Foundation (environment, repository, tooling) | In Progress |
-| Phase 1 | Audio capture and VAD | Planned |
+| Phase 1 | Audio capture and VAD | In Progress (foundation implemented; not yet validated on a physical device) |
 | Phase 2 | Offline speech-to-text integration | Planned |
 | Phase 3 | Offline text-to-speech integration | Planned |
 | Phase 4 | Device-to-device communication transport | Planned |
