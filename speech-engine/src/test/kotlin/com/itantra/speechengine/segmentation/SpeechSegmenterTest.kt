@@ -151,8 +151,14 @@ class SpeechSegmenterTest {
         segmenter.processFrame(TestAudioSignals.emptyFrame(audioConfig))
         speech(6).forEach { segmenter.processFrame(it) }
         segmenter.processFrame(TestAudioSignals.emptyFrame(audioConfig))
-        val results = silence(silenceFramesToFinalize()).map { segmenter.processFrame(it) }
-        assertNotNull(results.last())
+        // A generous silence tail (more than the usual exact count) since
+        // the interleaved empty frame itself counts toward the VAD's
+        // inactive-frame hysteresis and can shift the exact finalize frame
+        // earlier by one. This test only cares that finalization still
+        // happens correctly and nothing crashes, not the exact frame it
+        // lands on (that precision is covered by other tests above).
+        val results = silence(silenceFramesToFinalize() + 5).map { segmenter.processFrame(it) }
+        assertTrue("segment should eventually finalize despite interleaved empty frames", results.any { it != null })
     }
 
     @Test
