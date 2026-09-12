@@ -34,7 +34,7 @@ See `architecture.md` for how these fit together.
 
 ## Validation status
 
-- **20 JVM tests passed** (9 in `EnergyZcrVoiceActivityDetectorTest`, 11 in `SpeechSegmenterTest`) — Level 2 (see `testing-and-validation.md`).
+- **20 JVM tests executed: PASS** (9 in `EnergyZcrVoiceActivityDetectorTest`, 11 in `SpeechSegmenterTest`) — Level 2 (see `testing-and-validation.md`).
 - **Android Gradle build: pending.** The required Android SDK platform/build-tools are not confirmed installed in the current development environment.
 - **AudioRecord Android compilation/runtime validation: pending** (Level 3/4).
 - **Physical-device validation: pending** (Level 4).
