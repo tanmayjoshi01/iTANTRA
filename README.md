@@ -422,6 +422,8 @@ This list will be revised as implementation progresses and constraints are eithe
 
 ## Documentation
 
+`CLAUDE.md` (repository root) and `docs/claude/` contain the project-control documentation used to guide Claude Code sessions on this repository (stage roadmap, architecture-as-implemented, ownership boundaries, engineering rules, testing/validation standards, and a decision log). These are working-process documents for AI-assisted development, distinct from the planned deliverable documents listed below.
+
 The following documents are planned but do not yet exist. No links are provided until the corresponding document exists in this repository.
 
 | Document | Status |
