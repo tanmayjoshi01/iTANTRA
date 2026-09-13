@@ -44,4 +44,12 @@ dependencies {
     androidTestImplementation("androidx.test:core:1.7.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
+
+    // Stage 3 (Android STT on-device feasibility) validation only. MIT
+    // licensed. Test-scope only (androidTestImplementation): this is not a
+    // production dependency of speech-engine and is not shipped in the
+    // library's AAR consumed by the application module. Whether ONNX
+    // Runtime (directly or via sherpa-onnx) becomes an actual runtime
+    // dependency is a decision for a later stage, not made here.
+    androidTestImplementation("com.microsoft.onnxruntime:onnxruntime-android:1.22.0")
 }
