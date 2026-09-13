@@ -45,11 +45,13 @@ dependencies {
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
 
-    // Stage 3 (Android STT on-device feasibility) validation only. MIT
-    // licensed. Test-scope only (androidTestImplementation): this is not a
-    // production dependency of speech-engine and is not shipped in the
-    // library's AAR consumed by the application module. Whether ONNX
-    // Runtime (directly or via sherpa-onnx) becomes an actual runtime
-    // dependency is a decision for a later stage, not made here.
-    androidTestImplementation("com.microsoft.onnxruntime:onnxruntime-android:1.22.0")
+    // Stage 3B: on-device Hindi STT inference runtime. MIT licensed.
+    // Promoted from androidTestImplementation (Stage 3 Phase A) to a real
+    // production dependency now that speech-engine's own STT recognizer
+    // (IndicConformerRecognizer) calls it directly. sherpa-onnx was
+    // evaluated (Stage 3B) and not adopted: this direct ONNX Runtime path,
+    // combined with the hand-verified MelSpectrogramFeatureExtractor and
+    // CtcGreedyDecoder in this module, was already demonstrated end-to-end
+    // and required no additional native dependency.
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.22.0")
 }
