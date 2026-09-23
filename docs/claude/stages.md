@@ -28,21 +28,21 @@ Status values used below follow `CLAUDE.md`'s vocabulary: **Completed**, **Imple
 - **Major deliverables:** `AudioConfig`, `AudioFrame`, `AudioRecorder`, `AudioCaptureException`; `VoiceActivityDetector` interface, `VadState`, `VadConfig`, `EnergyZcrVoiceActivityDetector`; `SegmenterConfig`, `SpeechSegmenter`, `SpeechSegment`; JVM unit tests; Android instrumented test source.
 - **Expected input:** Raw microphone audio (via Android `AudioRecord`).
 - **Expected output:** A stream of `SpeechSegment` objects, each a bounded span of PCM audio corresponding to one detected utterance.
-- **Acceptance criteria:** JVM unit tests pass for VAD and segmentation logic (done — see `current-state.md`); Android Gradle build succeeds; instrumented tests pass on a physical device with a real microphone (pending).
+- **Acceptance criteria:** JVM unit tests pass for VAD and segmentation logic (done — see `current-state.md`); Android Gradle build succeeds (evidenced locally — see `current-state.md`); instrumented tests pass on a physical device with a real microphone (partially evidenced: one combined audio/segmentation/recognition instrumented test has a confirmed on-device pass; Stage 1's own dedicated `AudioRecorderInstrumentedTest` has no confirmed run — see `current-state.md`).
 - **Dependencies:** Stage 0.
 - **Explicitly out of scope:** Any STT, TTS, transport, or UI code; noise-robustness benchmarking; accuracy tuning of VAD thresholds against real recordings (parked for a later evaluation pass — see `decisions.md`, Decision 001).
 
 ## Stage 2 — Offline STT
 
-**Status:** Next (not started)
+**Status:** In progress (Hindi only; started ahead of this document being updated — see `current-state.md`, "Note on stage-gating")
 
 - **Objective:** Convert a `SpeechSegment` into recognized text entirely on-device, without any network dependency.
-- **Major deliverables (proposed, not finalized):** STT engine/runtime integration; a model or set of models covering the target language scope; an interface boundary that accepts a `SpeechSegment`-shaped input and produces recognized text plus, where available, confidence/timing metadata.
+- **Major deliverables:** STT engine/runtime integration — done: ONNX Runtime Android, direct integration (sherpa-onnx was evaluated and not adopted). Model — done for Hindi: AI4Bharat IndicConformer (FP32 ONNX export). Interface boundary — done: `SpeechRecognizer.recognize(segment: SpeechSegment): SpeechRecognitionResult`, implemented by `IndicConformerRecognizer`, with `MelSpectrogramFeatureExtractor` and `CtcGreedyDecoder` as supporting components. See `architecture.md` and `current-state.md` for the verified detail.
 - **Expected input:** `SpeechSegment` (Stage 1 output).
-- **Expected output:** Recognized text (and associated metadata) per segment.
-- **Acceptance criteria:** Under Evaluation — will be defined when the STT runtime/model is selected. Expected to include at minimum: successful offline recognition of test utterances, and a measured WER on a defined test set (see `testing-and-validation.md`).
+- **Expected output:** Recognized text (and associated metadata) per segment — implemented (`SpeechRecognitionResult`: text, language, timestamps, inference time).
+- **Acceptance criteria:** Successful offline recognition of test utterances — evidenced (JVM feature-extraction correctness test against a NeMo reference, plus one physical-device pass recognizing a real spoken Hindi utterance end-to-end). A measured WER on a defined test set has **not** been produced (see `testing-and-validation.md`) — this remains outstanding for calling Stage 2 complete.
 - **Dependencies:** Stage 1 (a working segment source). Does not require Stage 4 (transport) or Stage 3 (TTS).
-- **Explicitly out of scope:** Transport, TTS, UI, multilingual completeness (single-language proof of concept is acceptable before expanding — see Stage 8). Model selection itself is Under Evaluation and must not be finalized or downloaded without explicit instruction.
+- **Explicitly out of scope (still applies):** Transport, TTS, UI. Multilingual completeness — only Hindi is covered so far; single-language proof of concept was the accepted starting point (see Stage 8). The model file itself is not committed to the repository (loaded from an external, caller-supplied path) — its distribution mechanism is still an open question (see `architecture.md`).
 
 ## Stage 3 — Offline TTS
 

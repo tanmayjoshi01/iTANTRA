@@ -46,7 +46,7 @@ This document defines who owns which part of the system. Neither developer shoul
 
 ## Current structural situation (verified against the repository)
 
-- `speech-engine` exists and is implemented for Stage 1 (audio capture, VAD, segmentation). This is Tanmay's module.
+- `speech-engine` exists and is implemented for Stage 1 (audio capture, VAD, segmentation) and, additionally, Stage 2 for Hindi only (offline STT via `IndicConformerRecognizer`, ONNX Runtime Android — see `current-state.md`, `architecture.md`). This is Tanmay's module; the STT work falls under the same ownership entry above ("Speech-to-text (STT), once Stage 2 begins" — Stage 2 has, in fact, begun).
 - `app` (the Android application module) **does not exist yet**. `settings.gradle.kts` contains only a comment reserving its future inclusion (`include(":app")`).
 - Paras will create the `app` module later.
 

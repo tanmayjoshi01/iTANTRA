@@ -21,13 +21,13 @@ No execution involved. Confirms the code reads correctly and matches intended de
 ### Level 2 — Unit tests
 
 - Deterministic JVM tests, run without an Android device or emulator.
-- Current status: 20 JVM tests pass for `speech-engine` (VAD and segmentation logic) — see `current-state.md`.
+- Current status: 21 JVM tests pass for `speech-engine` (9 VAD, 11 segmentation, 1 STT feature-extraction correctness) — see `current-state.md`. Confirmed from `speech-engine/build/test-results/testDebugUnitTest/` output; this is local, gitignored build output, not something committed to the repository.
 
 ### Level 3 — Build validation
 
 - Gradle compilation of the actual Android target (not just JVM-testable code).
 - Lint / static analysis checks where configured.
-- Current status: pending — the required Android SDK platform/build-tools are not confirmed installed in the development environment (see `current-state.md`).
+- Current status: **confirmed working**, superseding the prior "pending — SDK not installed" note. Local (gitignored) build output shows a debug instrumented-test APK was built and installed on a physical device via `connectedAndroidTest` on 2026-09-13 (see `current-state.md`). This evidence is local to one development machine and is not reproducible from a fresh clone without redoing the build.
 
 ### Level 4 — Device validation
 
@@ -35,7 +35,7 @@ No execution involved. Confirms the code reads correctly and matches intended de
 - Real microphone input.
 - Real audio playback.
 - Real Android lifecycle behavior (backgrounding, permission dialogs, etc.).
-- Current status: pending, including on the reference test device (OnePlus Nord CE4).
+- Current status: **partially evidenced, not complete.** One instrumented test (`MicrophoneToHindiTextInstrumentedTest`, exercising `AudioRecorder` + `SpeechSegmenter` + `IndicConformerRecognizer` together from a real spoken utterance) has a confirmed PASS on the reference test device (OnePlus Nord CE4, device model `CPH2613`), evidenced by local build output dated 2026-09-13 — see `current-state.md` for the exact measurements logged. No confirmed execution evidence exists for `AudioRecorderInstrumentedTest` (Stage 1's own dedicated device test) or for the other two STT instrumented tests (`IndicConformerOnnxDeviceValidationTest`, `IndicConformerRecognizerInstrumentedTest`) — these are written but must be treated as unconfirmed until actually run and observed. Real audio playback is not applicable yet (no TTS exists).
 
 ### Level 5 — End-to-end validation
 

@@ -56,6 +56,16 @@ Format for every entry: ID, Date (if known), Decision, Context, Alternatives, Re
 - **Status:** Accepted.
 - **Revisit condition:** None identified — this is a standing rule, not expected to change per-task.
 
+## Decision 006 — Hindi STT model and inference runtime
+
+- **Date:** Not recorded (implemented 2026-09-13, per git history; not previously logged here).
+- **Decision:** Use the AI4Bharat IndicConformer Hindi model (`indicconformer_stt_hi_hybrid_rnnt_large`, FP32 ONNX export) as the first offline STT model, executed via ONNX Runtime Android (`com.microsoft.onnxruntime:onnxruntime-android:1.22.0`) called directly from `speech-engine`, rather than through sherpa-onnx.
+- **Context:** Stage 2 needed a working, on-device, offline Hindi speech recognizer. This decision and its supporting evaluation are recorded in code comments (`speech-engine/build.gradle.kts`, `IndicConformerRecognizer.kt`) referencing an informal internal "Stage 3 / Stage 3B" validation process and external artifacts under `~/itantra-stt-validation/` on the development machine — that external process and its artifacts are outside this repository and were not independently verified by this documentation audit; this entry only records the decision and integration as they exist in the committed source.
+- **Alternatives considered:** sherpa-onnx (evaluated per the source comments, not adopted: the direct ONNX Runtime path plus this module's own `MelSpectrogramFeatureExtractor`/`CtcGreedyDecoder` was already working end-to-end and needed no additional native dependency). A dynamically-quantized INT8 export of the same model was also tried and rejected — per source comments, it fails to load on ONNX Runtime Android (`ConvInteger` op unimplemented) — so only the FP32 export is used.
+- **Reason:** Working, offline, on-device Hindi recognition without an additional runtime dependency beyond ONNX Runtime; per source comments, verified against a NeMo-computed reference feature set and a known-correct reference transcript before being adopted.
+- **Status:** Accepted (evidenced by production code, `build.gradle.kts` dependency promotion from test-only to production `implementation`, and one physical-device pass — see `current-state.md`). **License gap:** the ONNX Runtime license is recorded (MIT, per `build.gradle.kts` comment); the IndicConformer model's own license has not been recorded anywhere in this repository. Per `instructions.md`'s model rules, the model license is distinct from the runtime license and must be recorded separately before this can be considered a fully documented adoption — this is an open item, not a completed one.
+- **Revisit condition:** When the model license is confirmed and recorded; when a model-file distribution mechanism is decided (the file is not committed to the repository — see `architecture.md`); when WER is actually measured; when additional languages are evaluated for Stage 8.
+
 ---
 
 ## Adding future decisions

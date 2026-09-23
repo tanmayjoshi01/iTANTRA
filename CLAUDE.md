@@ -10,8 +10,8 @@ iTANTRA is an offline, multilingual, device-to-device speech communication syste
 
 - Developer active in this branch: **Tanmay**
 - Branch: **Tanmay-iTarntra**
-- Current development stage: **Stage 1 — Audio + VAD Foundation** (implementation complete; Android/device validation pending)
-- Next planned stage: **Stage 2 — Offline STT** (not started; must not be started without explicit instruction)
+- Current development stage: **Stage 1 — Audio + VAD Foundation** (implemented; JVM-tested; Android build and one physical-device pass evidenced locally — see `current-state.md`)
+- Also underway: **Stage 2 — Offline STT, Hindi only** (a real ONNX-based recognizer is implemented, JVM-tested, and has one recorded physical-device pass; not benchmarked, not multilingual, model file not in the repository — see `current-state.md` for the exact validation level reached and what has not yet been confirmed)
 
 ## Mandatory reading order
 
