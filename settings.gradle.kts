@@ -17,6 +17,4 @@ dependencyResolutionManagement {
 rootProject.name = "iTANTRA"
 
 include(":speech-engine")
-
-// Paras's future Android application module is expected to be added here,
-// e.g.: include(":app")
+include(":app")
