@@ -130,6 +130,24 @@ class IndicConformerOnnxDeviceValidationTest {
     }
 
     /**
+     * INT8 MatMul-only export (indicconformer_hi_int8_matmul.onnx): only
+     * MatMul is quantized, Conv stays FP32, so the graph has no ConvInteger
+     * node. It was created as the fallback for the full INT8 export above,
+     * whose ConvInteger nodes (uint8 activations x int8 weights) have no
+     * kernel in onnxruntime-android 1.22.0 - [int8_loadsAndRunsSyntheticTensorOnDevice]
+     * fails at session creation with ORT_NOT_IMPLEMENTED (observed on
+     * device 2026-09-25). Added so one device run
+     * (speech-engine/scripts/run_stt_device_validation.sh) gives a
+     * three-way FP32 / INT8 / INT8 MatMul-only comparison, using the same
+     * synthetic (1,80,300) input and 1 warm-up + 5 measured runs as the two
+     * tests above. See docs/claude/android-stt-readiness.md.
+     */
+    @Test
+    fun int8Matmul_loadsAndRunsSyntheticTensorOnDevice() {
+        runModelTimingTest("indicconformer_hi_int8_matmul.onnx", "INT8_MATMUL_ONLY")
+    }
+
+    /**
      * Real (not synthetic) Hindi audio, executed on-device: feeds NeMo's own
      * precomputed mel features for a known Gate-1-verified clip into the
      * FP32 ONNX graph via ONNX Runtime Android, then performs CTC greedy
