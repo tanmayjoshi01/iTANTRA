@@ -1,0 +1,33 @@
+[PASS] com.itantra.speechengine.stt.IndicConformerRecognizerInstrumentedTest#knownPcmClip_recognizesCorrectHindiText
+  REAL ANDROID MEASUREMENT [Milestone1 known-PCM] loadTimeMs=4829 inferenceTimeMs=6029 audioDurationMs=18180 rtf=0.3316281628162816 ramAfterLoad=totalPss=1016700KB ramAfterInfer=totalPss=1143724KB
+  REAL ANDROID MEASUREMENT [Milestone1 known-PCM] recognized="बाहरी द्वीपों पर क्रेडिट कार्ड शायद स्वीकार नहीं किए जाएंगे हालांकि ब्रिटिश और संयुक्त राज्य की मुद्रा स्वीकार्य होगी यह निर्धारित करने के लिए कि स्वीकार्य भुगतान विधि क्या है मालिकों से पहले ही पूछ लें"
+  REAL ANDROID MEASUREMENT [Milestone1 known-PCM] reference="बाहरी द्वीपों पर क्रेडिट कार्ड शायद स्वीकार नहीं किए जाएंगे हालांकि ब्रिटिश और संयुक्त राज्य की मुद्रा स्वीकार्य होगी यह निर्धारित करने के लिए कि स्वीकार्य भुगतान विधि क्या है मालिकों से पहले ही पूछ लें"
+  REAL ANDROID MEASUREMENT [Milestone1 known-PCM] exactMatch=true
+  lowmemorykiller kills of other apps during this test: 4; test process killed/died: 0
+[PASS] com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest#fp32_realHindiFeatures_ctcGreedyDecode_onDevice
+  REAL ANDROID MEASUREMENT [tokens] loaded 5633 tokens, blankId=5632
+  REAL ANDROID MEASUREMENT [FP32 real audio] frames=455 vocabSize=5633 inferenceTimeMs=4762.7
+  REAL ANDROID MEASUREMENT [FP32 real audio] decoded="बाहरी द्वीपों पर क्रेडिट कार्ड शायद स्वीकार नहीं किए जाएंगे हालांकि ब्रिटिश और संयुक्त राज्य की मुद्रा स्वीकार्य होगी यह निर्धारित करने के लिए कि स्वीकार्य भुगतान विधि क्या है मालिकों से पहले ही पूछ लें"
+  REAL ANDROID MEASUREMENT [FP32 real audio] reference="बाहरी द्वीपों पर क्रेडिट कार्ड शायद स्वीकार नहीं किए जाएंगे हालांकि ब्रिटिश और संयुक्त राज्य की मुद्रा स्वीकार्य होगी यह निर्धारित करने के लिए कि स्वीकार्य भुगतान विधि क्या है मालिकों से पहले ही पूछ लें"
+  REAL ANDROID MEASUREMENT [FP32 real audio] exactMatch=true
+  lowmemorykiller kills of other apps during this test: 0; test process killed/died: 0
+[PASS] com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest#fp32_loadsAndRunsSyntheticTensorOnDevice
+  REAL ANDROID MEASUREMENT [FP32] file=indicconformer_hi.onnx size=470.2MB loadTime=3747.9ms inferenceRunsMs=[598.623854, 502.594375, 552.985313, 645.872917, 545.560625] meanMs=569.1 ramAfterLoad=totalPss=1011427KB (nativePss=970409KB, dalvikPss=299KB) ramAfterInfer=totalPss=1012376KB (nativePss=924421KB, dalvikPss=831KB)
+  lowmemorykiller kills of other apps during this test: 0; test process killed/died: 0
+[PASS] com.itantra.speechengine.stt.IndicConformerRecognizerInstrumentedTest#knownPcmClip_repeatedInferenceIsStable
+  REAL ANDROID MEASUREMENT [Milestone1 stability] 3 runs identical=true
+  lowmemorykiller kills of other apps during this test: 0; test process killed/died: 0
+[FAIL] com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest#int8_loadsAndRunsSyntheticTensorOnDevice
+  lowmemorykiller kills of other apps during this test: 0; test process killed/died: 0
+  ! 09-25 14:50:51.440 E/TestRunner(18942): ai.onnxruntime.OrtException: Error code - ORT_NOT_IMPLEMENTED - message: Could not find an implementation for ConvInteger(10) node with name '/pre_encode/conv/conv.0/Conv_quant'
+  ! There was 1 failure:
+  ! 1) int8_loadsAndRunsSyntheticTensorOnDevice(com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest)
+  ! ai.onnxruntime.OrtException: Error code - ORT_NOT_IMPLEMENTED - message: Could not find an implementation for ConvInteger(10) node with name '/pre_encode/conv/conv.0/Conv_quant'
+  ! 	at ai.onnxruntime.OrtSession.createSession(Native Method)
+[PASS] com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest#int8Matmul_loadsAndRunsSyntheticTensorOnDevice
+  REAL ANDROID MEASUREMENT [INT8_MATMUL_ONLY] file=indicconformer_hi_int8_matmul.onnx size=187.9MB loadTime=1912.0ms inferenceRunsMs=[354.712864, 302.887084, 336.127344, 321.802291, 281.229375] meanMs=319.4 ramAfterLoad=totalPss=471291KB (nativePss=436263KB, dalvikPss=1007KB) ramAfterInfer=totalPss=381159KB (nativePss=345071KB, dalvikPss=1243KB)
+  lowmemorykiller kills of other apps during this test: 0; test process killed/died: 0
+
+NOTE: produced from the raw run-1 output by applying the same test-process logcat filter and
+lowmemorykiller count that run_stt_device_validation.sh now applies; the unfiltered full-device
+logcats were kept locally and not committed (they contain other apps on a personal phone).

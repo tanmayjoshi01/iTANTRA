@@ -1,0 +1,50 @@
+09-25 14:49:53.992 I/libc    (18333): SetHeapTaggingLevel: tag level set to 0
+09-25 14:49:53.999 I/eechengine.test(18333): Late-enabling -Xcheck:jni
+09-25 14:49:54.034 E/eechengine.test(18333): Unknown bits set in runtime_flags: 0x40000000
+09-25 14:49:54.034 I/eechengine.test(18333): Using generational CollectorTypeCMC GC.
+09-25 14:49:54.052 D/nativeloader(18333): Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+09-25 14:49:54.061 D/OplusActivityThreadExtImpl(18333): java.lang.NoSuchMethodException: dalvik.system.VMRuntime.SupressionGC [int, int]
+09-25 14:49:54.062 W/libc    (18333): Access denied finding property "persist.vendor.sys.activitylog"
+09-25 14:49:54.062 I/OneTrace(18333): Mark active for pid=18333? true
+09-25 14:49:54.063 D/cutils-dev(18333): otrace_set_tracing_enabled? true tag:0
+09-25 14:49:54.063 D/cutils-dev(18333): properties changed in otrace_seq_number_changed!
+09-25 14:49:54.122 D/OplusActivityManager(18333): get AMS extension: android.os.BinderProxy@adb9662
+09-25 14:49:54.124 D/OplusAppHeapManager(18333): java.lang.NoSuchMethodException: dalvik.system.VMRuntime.updateProcessValue [int, int, int]
+09-25 14:49:54.128 D/CompactWindowAppManager(18333): initCompactApplicationInfo CompactMode: , NormalMode: 
+09-25 14:49:54.132 V/Configuration(18333): Updating configuration, locales updated from [] to [en_GB]
+09-25 14:49:54.134 D/OplusScrollToTopManager(18333): setIsInWhiteList false
+09-25 14:49:54.135 D/OplusViewDebugManager(18333): OplusViewDebugManager Constructor android.view.debug.OplusViewDebugManager@e67b8b0 [mHasViewDebugProperty true] [mHasMsgDebugProperty false] [DEBUG false] [EXTRAINFOENABLE false] [LIGHT_OS false]
+09-25 14:49:54.152 W/libc    (18333): Access denied finding property "ro.odm.prev.product.name"
+09-25 14:49:54.155 D/ApplicationLoaders(18333): Returning zygote-cached class loader: /system/framework/android.test.base.jar
+09-25 14:49:54.163 D/nativeloader(18333): Configuring clns-9 for other apk /system/framework/android.test.mock.jar. target_sdk_version=24, uses_libraries=ALL, library_path=/data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/lib/arm64:/data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.itantra.speechengine.test
+09-25 14:49:54.163 D/nativeloader(18333): Extending system_exposed_libraries: libbinauralrenderer_wrapper.qti.so:libhoaeffects.qti.so:libsuperNight.oplus.so:libAPSClient-cmd-jni-extension.oplus.so:libsatellite_audio_jni.oplus.so:libortc_so.oplus.so:libsoundtouch.oplus.so:libsoundtouch_jni.oplus.so:libOplusStringJNI-extension.oplus.so:libsatellite_ostx_jni.oplus.so:libapssuspend-jni.oplus.so:libupdateprof.qti.so:libthermalclient.qti.so:libqape.qti.so:libqesdk_ndk_platform.qti.so:liblistenjni.qti.so
+09-25 14:49:54.164 D/ApplicationLoaders(18333): Returning zygote-cached class loader: /system/framework/org.apache.http.legacy.jar
+09-25 14:49:54.164 D/ApplicationLoaders(18333): Returning zygote-cached class loader: /system/framework/android.test.base.jar
+09-25 14:49:54.175 D/nativeloader(18333): Configuring clns-10 for other apk /system/framework/android.test.runner.jar. target_sdk_version=24, uses_libraries=ALL, library_path=/data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/lib/arm64:/data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.itantra.speechengine.test
+09-25 14:49:54.176 D/nativeloader(18333): Extending system_exposed_libraries: libbinauralrenderer_wrapper.qti.so:libhoaeffects.qti.so:libsuperNight.oplus.so:libAPSClient-cmd-jni-extension.oplus.so:libsatellite_audio_jni.oplus.so:libortc_so.oplus.so:libsoundtouch.oplus.so:libsoundtouch_jni.oplus.so:libOplusStringJNI-extension.oplus.so:libsatellite_ostx_jni.oplus.so:libapssuspend-jni.oplus.so:libupdateprof.qti.so:libthermalclient.qti.so:libqape.qti.so:libqesdk_ndk_platform.qti.so:liblistenjni.qti.so
+09-25 14:49:54.245 D/nativeloader(18333): Configuring clns-11 for other apk /data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/base.apk. target_sdk_version=24, uses_libraries=, library_path=/data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/lib/arm64:/data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.itantra.speechengine.test
+09-25 14:49:54.246 D/nativeloader(18333): Extending system_exposed_libraries: libbinauralrenderer_wrapper.qti.so:libhoaeffects.qti.so:libsuperNight.oplus.so:libAPSClient-cmd-jni-extension.oplus.so:libsatellite_audio_jni.oplus.so:libortc_so.oplus.so:libsoundtouch.oplus.so:libsoundtouch_jni.oplus.so:libOplusStringJNI-extension.oplus.so:libsatellite_ostx_jni.oplus.so:libapssuspend-jni.oplus.so:libupdateprof.qti.so:libthermalclient.qti.so:libqape.qti.so:libqesdk_ndk_platform.qti.so:liblistenjni.qti.so
+09-25 14:49:54.253 I/eechengine.test(18333): AssetManager2(0x7ebeea0728) locale list changing from [] to [en-GB]
+09-25 14:49:54.264 V/GraphicsEnvironment(18333): Currently set values for:
+09-25 14:49:54.265 V/GraphicsEnvironment(18333):   angle_gl_driver_selection_pkgs=[]
+09-25 14:49:54.265 V/GraphicsEnvironment(18333):   angle_gl_driver_selection_values=[]
+09-25 14:49:54.265 V/GraphicsEnvironment(18333): com.itantra.speechengine.test is not listed in per-application setting
+09-25 14:49:54.265 V/GraphicsEnvironment(18333): ANGLE allowlist from config: 
+09-25 14:49:54.265 V/GraphicsEnvironment(18333): com.itantra.speechengine.test is not listed in ANGLE allowlist or settings, returning default
+09-25 14:49:54.265 V/GraphicsEnvironment(18333): Updatable production driver is not supported on the device.
+09-25 14:49:54.275 D/ResourcesManagerExtImpl(18333): applyConfigurationToAppResourcesLocked app.getDisplayId() return callback.displayId:-1
+09-25 14:49:54.277 I/AndroidJUnitRunner(18333): newApplication android.app.Application
+09-25 14:49:54.280 I/AndroidJUnitRunner(18333): onCreate Bundle[mParcelledData.dataSize=248]
+09-25 14:49:54.284 D/AndroidJUnitRunner(18333): Use the raw file system for managing file I/O.
+09-25 14:49:54.300 V/TestEventClient(18333): No service name argument was given (testDiscoveryService, testRunEventService or orchestratorService)
+09-25 14:49:54.306 D/AndroidJUnitRunner(18333): onStart is called.
+09-25 14:49:54.343 I/TestRunner(18333): run started: 1 tests
+09-25 14:49:54.344 I/TestRunner(18333): started: knownPcmClip_recognizesCorrectHindiText(com.itantra.speechengine.stt.IndicConformerRecognizerInstrumentedTest)
+09-25 14:49:54.763 W/libc    (18333): Access denied finding property "ro.hardware.chipname"
+09-25 14:49:54.765 D/nativeloader(18333): Load /data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/base.apk!/lib/arm64-v8a/libonnxruntime4j_jni.so using class loader ns clns-11 (caller=/data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/base.apk): ok
+09-25 14:50:05.731 I/System.out(18333): REAL ANDROID MEASUREMENT [Milestone1 known-PCM] loadTimeMs=4829 inferenceTimeMs=6029 audioDurationMs=18180 rtf=0.3316281628162816 ramAfterLoad=totalPss=1016700KB ramAfterInfer=totalPss=1143724KB
+09-25 14:50:05.731 I/System.out(18333): REAL ANDROID MEASUREMENT [Milestone1 known-PCM] recognized="बाहरी द्वीपों पर क्रेडिट कार्ड शायद स्वीकार नहीं किए जाएंगे हालांकि ब्रिटिश और संयुक्त राज्य की मुद्रा स्वीकार्य होगी यह निर्धारित करने के लिए कि स्वीकार्य भुगतान विधि क्या है मालिकों से पहले ही पूछ लें"
+09-25 14:50:05.731 I/System.out(18333): REAL ANDROID MEASUREMENT [Milestone1 known-PCM] reference="बाहरी द्वीपों पर क्रेडिट कार्ड शायद स्वीकार नहीं किए जाएंगे हालांकि ब्रिटिश और संयुक्त राज्य की मुद्रा स्वीकार्य होगी यह निर्धारित करने के लिए कि स्वीकार्य भुगतान विधि क्या है मालिकों से पहले ही पूछ लें"
+09-25 14:50:05.731 I/System.out(18333): REAL ANDROID MEASUREMENT [Milestone1 known-PCM] exactMatch=true
+09-25 14:50:05.781 I/TestRunner(18333): finished: knownPcmClip_recognizesCorrectHindiText(com.itantra.speechengine.stt.IndicConformerRecognizerInstrumentedTest)
+09-25 14:50:05.800 I/TestRunner(18333): run finished: 1 tests, 0 failed, 0 ignored

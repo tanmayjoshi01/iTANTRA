@@ -1,0 +1,20 @@
+serial=2fa4cefa
+run_utc=20260925T091736Z
+ro.product.manufacturer=OnePlus
+ro.product.model=CPH2613
+ro.build.version.release=16
+ro.build.version.sdk=36
+ro.product.cpu.abi=arm64-v8a
+ro.board.platform=crow
+ro.hardware=qcom
+--- /proc/cpuinfo (Features, CPU part, unique) ---
+CPU part	: 0xd46
+CPU part	: 0xd4d
+Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm jscvt fcma lrcpc dcpop sha3 sm3 sm4 asimddp sha512 asimdfhm dit uscat ilrcpc flagm sb paca pacg dcpodp flagm2 frint i8mm bf16 bti
+--- /proc/meminfo ---
+MemTotal:        7411588 kB
+MemAvailable:    1986752 kB
+SwapTotal:       5767164 kB
+--- storage ---
+Filesystem      Size Used Avail Use% Mounted on
+/dev/fuse       100G  91G  9.3G  91% /storage/emulated
