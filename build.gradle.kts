@@ -29,5 +29,10 @@
 // patch release in that line, confirmed via services.gradle.org.
 plugins {
     id("com.android.library") version "8.13.2" apply false
+    // Application module (app): same AGP version as the library plugin above.
+    id("com.android.application") version "8.13.2" apply false
     id("org.jetbrains.kotlin.android") version "2.4.20" apply false
+    // Jetpack Compose compiler for app. Since Kotlin 2.0 the Compose compiler
+    // ships with Kotlin and must match the Kotlin version exactly.
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.20" apply false
 }
