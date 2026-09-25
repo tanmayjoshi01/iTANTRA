@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">iTANTRA</string>
+    <string name="foundation_status">Application foundation</string>
+    <string name="speech_engine_status">Speech-engine integration: pending</string>
+</resources>
