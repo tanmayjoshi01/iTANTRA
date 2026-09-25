@@ -20,7 +20,7 @@ This document defines who owns which part of the system. Neither developer shoul
 
 ## Paras
 
-- Android application module (`app` — does not exist yet, see below)
+- Android application module (`app` — Stage 1 foundation exists, see below)
 - UI (Jetpack Compose)
 - Communication layer
 - Message protocol
@@ -47,8 +47,7 @@ This document defines who owns which part of the system. Neither developer shoul
 ## Current structural situation (verified against the repository)
 
 - `speech-engine` exists and is implemented for Stage 1 (audio capture, VAD, segmentation) and, additionally, Stage 2 for Hindi only (offline STT via `IndicConformerRecognizer`, ONNX Runtime Android — see `current-state.md`, `architecture.md`). This is Tanmay's module; the STT work falls under the same ownership entry above ("Speech-to-text (STT), once Stage 2 begins" — Stage 2 has, in fact, begun).
-- `app` (the Android application module) **does not exist yet**. `settings.gradle.kts` contains only a comment reserving its future inclusion (`include(":app")`).
-- Paras will create the `app` module later.
+- `app` (the Android application module) exists as Paras's Stage 1 foundation (`include(":app")` in `settings.gradle.kts`). It declares `implementation(project(":speech-engine"))` and does not contain or copy any `speech-engine` code. See `current-state.md` for its validation level.
 
 ## Rule for Paras's future work
 
