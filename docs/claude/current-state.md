@@ -46,6 +46,23 @@ This is the single most important file to keep accurate: it records what is actu
 
 See `architecture.md` for how all of these fit together.
 
+### Application module `app` — Paras, Stage 1 foundation (added 2026-09-25)
+
+Paras's "Stage 1" is the application foundation. It is separate from `stages.md`'s Stage 1 (Audio + VAD Foundation, Tanmay); `stages.md` does not yet list the application foundation as its own stage.
+
+- Gradle module `:app` (`com.android.application`), namespace and `applicationId` `com.itantra.app`, `compileSdk` 36, `minSdk` 24 (both match `speech-engine`), `targetSdk` 36, Java 17. The package name and `targetSdk` were chosen during Stage 1 by following the existing `com.itantra.*` convention and `compileSdk`; they are not yet recorded in `decisions.md`.
+- `MainActivity`: a single Jetpack Compose screen (title plus a "Speech-engine integration: pending" placeholder). No speech, transport, protocol, or TTS logic.
+- Depends on `:speech-engine` (`implementation(project(":speech-engine"))`) but does not call any `speech-engine` API yet. `RECORD_AUDIO` reaches the app only through the manifest merge from `speech-engine`. The runtime permission is not requested yet; that is deferred until the app starts microphone capture.
+- Dependencies added (`app` only): Compose BOM `2026.06.01` (Compose 1.11.4; `ui`, `material3`), `androidx.activity:activity-compose:1.13.0`; test-only: `androidx.compose.ui:ui-test-junit4`, `androidx.test:runner:1.7.0`, `androidx.test.ext:junit:1.3.0`, `junit:junit:4.13.2`. Newer Compose BOMs (2026.08.00+, Compose 1.12) were rejected because their AAR metadata requires `compileSdk` 37 and AGP 9.1+. That failure was observed in `checkDebugAarMetadata`.
+- Root build changes: `include(":app")`; `com.android.application` 8.13.2 and `org.jetbrains.kotlin.plugin.compose` 2.4.20 added to the root `plugins { }` block (`apply false`), matching the existing AGP and Kotlin versions. No existing entry was changed.
+- Instrumented test source: `app/src/androidTest` — `MainActivityInstrumentedTest` (2 tests). No JVM unit tests in `app`, because it has no JVM-testable logic yet.
+- APK size (measured 2026-09-25, not optimized): `app-debug.apk` 86.9 MB, `app-release-unsigned.apk` 83.8 MB. Most of this is ONNX Runtime native libraries for four ABIs (arm64-v8a, armeabi-v7a, x86, x86_64), inherited from `speech-engine`'s `onnxruntime-android` dependency. ABI filtering or splitting is an open packaging question, not decided here.
+
+Validation (observed 2026-09-25 on Paras's machine, SDK `platforms;android-36`, `build-tools;36.0.0`):
+
+- Level 3: `./gradlew clean test assemble` BUILD SUCCESSFUL. `speech-engine`'s 21 JVM tests still pass in both debug and release variants.
+- Level 4: `./gradlew :app:connectedDebugAndroidTest` passed 2 of 2 tests (`launch_rendersFoundationScreen`, `installedApp_declaresSpeechEngineMicrophonePermission`) on a Samsung SM-T225 (Galaxy Tab A7 Lite), Android 14 / API 34, arm64-v8a. Manual `installDebug` plus launcher-intent start: activity resumed, screen rendered, no crash after a background/resume cycle. This is launch-only validation. No speech-engine functionality was exercised from the app.
+
 ## Validation status
 
 ### Level 2 — JVM unit tests: PASS
