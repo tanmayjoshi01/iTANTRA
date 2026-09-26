@@ -51,17 +51,34 @@ See `architecture.md` for how all of these fit together.
 Paras's "Stage 1" is the application foundation. It is separate from `stages.md`'s Stage 1 (Audio + VAD Foundation, Tanmay); `stages.md` does not yet list the application foundation as its own stage.
 
 - Gradle module `:app` (`com.android.application`), namespace and `applicationId` `com.itantra.app`, `compileSdk` 36, `minSdk` 24 (both match `speech-engine`), `targetSdk` 36, Java 17. The package name and `targetSdk` were chosen during Stage 1 by following the existing `com.itantra.*` convention and `compileSdk`; they are not yet recorded in `decisions.md`.
-- `MainActivity`: a single Jetpack Compose screen (title plus a "Speech-engine integration: pending" placeholder). No speech, transport, protocol, or TTS logic.
-- Depends on `:speech-engine` (`implementation(project(":speech-engine"))`) but does not call any `speech-engine` API yet. `RECORD_AUDIO` reaches the app only through the manifest merge from `speech-engine`. The runtime permission is not requested yet; that is deferred until the app starts microphone capture.
+- `MainActivity`: a single Jetpack Compose screen. As of the speech-integration step (below) it has a state line, Start/Stop buttons, last recognized text, and an error line. No transport, protocol, or TTS logic.
+- Depends on `:speech-engine` (`implementation(project(":speech-engine"))`). `RECORD_AUDIO` reaches the app only through the manifest merge from `speech-engine`.
 - Dependencies added (`app` only): Compose BOM `2026.06.01` (Compose 1.11.4; `ui`, `material3`), `androidx.activity:activity-compose:1.13.0`; test-only: `androidx.compose.ui:ui-test-junit4`, `androidx.test:runner:1.7.0`, `androidx.test.ext:junit:1.3.0`, `junit:junit:4.13.2`. Newer Compose BOMs (2026.08.00+, Compose 1.12) were rejected because their AAR metadata requires `compileSdk` 37 and AGP 9.1+. That failure was observed in `checkDebugAarMetadata`.
 - Root build changes: `include(":app")`; `com.android.application` 8.13.2 and `org.jetbrains.kotlin.plugin.compose` 2.4.20 added to the root `plugins { }` block (`apply false`), matching the existing AGP and Kotlin versions. No existing entry was changed.
-- Instrumented test source: `app/src/androidTest` — `MainActivityInstrumentedTest` (2 tests). No JVM unit tests in `app`, because it has no JVM-testable logic yet.
+- Instrumented test source: `app/src/androidTest` — `MainActivityInstrumentedTest` (updated in the speech-integration step, below).
 - APK size (measured 2026-09-25, not optimized): `app-debug.apk` 86.9 MB, `app-release-unsigned.apk` 83.8 MB. Most of this is ONNX Runtime native libraries for four ABIs (arm64-v8a, armeabi-v7a, x86, x86_64), inherited from `speech-engine`'s `onnxruntime-android` dependency. ABI filtering or splitting is an open packaging question, not decided here.
 
 Validation (observed 2026-09-25 on Paras's machine, SDK `platforms;android-36`, `build-tools;36.0.0`):
 
 - Level 3: `./gradlew clean test assemble` BUILD SUCCESSFUL. `speech-engine`'s 21 JVM tests still pass in both debug and release variants.
 - Level 4: `./gradlew :app:connectedDebugAndroidTest` passed 2 of 2 tests (`launch_rendersFoundationScreen`, `installedApp_declaresSpeechEngineMicrophonePermission`) on a Samsung SM-T225 (Galaxy Tab A7 Lite), Android 14 / API 34, arm64-v8a. Manual `installDebug` plus launcher-intent start: activity resumed, screen rendered, no crash after a background/resume cycle. This is launch-only validation. No speech-engine functionality was exercised from the app.
+
+### Application module `app` — app-side speech integration (added 2026-09-25)
+
+Implemented (package `com.itantra.app.speech`, plus `SpeechViewModel` and `MainActivity`). `speech-engine` source is unchanged.
+
+- `SpeechController` wires speech-engine's public API: an `AudioFrameSource` (production: `AudioRecorderFrameSource`, a direct delegate to `AudioRecorder`) feeds `SpeechSegmenter` (with `EnergyZcrVoiceActivityDetector`), and each finished `SpeechSegment` goes to a `SpeechRecognizer`. State is exposed as an immutable `SpeechState` (`isListening`, `isRecognizing`, `lastText`, `error`) through a `StateFlow`. It uses no model, feature, or decoding internals.
+- Threading: only segmentation runs on `AudioRecorder`'s capture thread. `recognize()` runs on a separate worker (`Dispatchers.Default.limitedParallelism(1)`), one recognition at a time, never inside the audio callback. The recognizer is created lazily on that worker when the first utterance finishes, because constructing it loads the model. It is released on the same worker, so never during an inference.
+- Each Start creates a fresh `AudioRecorder` and `SpeechSegmenter`. Stop discards an utterance still in progress; utterances already finished are still recognized. Any recognition failure (including a missing model) stops listening and is shown as an error. Capture stops when the activity is no longer visible; a rotation does not stop it (`SpeechViewModel` owns the controller).
+- `RECORD_AUDIO` is requested at runtime by `MainActivity` (`ActivityResultContracts.RequestPermission`) only when Start is pressed without it. Denial is shown as an error; the app does not crash.
+- Model placement (development only, same as speech-engine's own device tests): `indicconformer_hi.onnx` and `tokens.txt` in the app's external files directory (`/sdcard/Android/data/com.itantra.app/files/`), pushed with adb. Nothing is bundled into the APK. The distribution mechanism is still undecided.
+- Dependencies added: `kotlinx-coroutines-android:1.11.0` and `androidx.lifecycle:lifecycle-viewmodel:2.9.4`, both already resolved transitively at those versions and now declared because app code uses them directly. Test-only: `kotlinx-coroutines-test:1.11.0`, `androidx.test:rules:1.7.0`.
+
+Tested (Level 2): `SpeechControllerTest`, 18 JVM tests, PASS (debug and release unit-test variants), using a fake `SpeechRecognizer` and a scripted audio source and VAD driving the real `SpeechSegmenter`. These tests prove app-side wiring, threading order, state, and error handling only; the fake recognizer is not evidence of speech recognition.
+
+Device validated (Level 4, Samsung SM-T225, Android 14, 2026-09-25): `./gradlew :app:connectedDebugAndroidTest` passed 3 of 3 (`launch_rendersSpeechScreenInIdleState`, `startThenStop_togglesListeningState` with RECORD_AUDIO pre-granted, `installedApp_declaresSpeechEngineMicrophonePermission`). Manual adb-driven check on a fresh install: Start shows the system permission dialog; "Don't allow" shows the denial error with no crash; granting moves the app to Listening (`AudioRecorder` logged `Recording started: sampleRate=16000Hz`); Stop returns to Idle (`Recording stopped`).
+
+**Not validated:** real model inference from the app. No model file has been on the tablet, and no utterance has been recognized from the app. The no-model path on device (speak, then expect a "model file not found" error) has also not been exercised, because it needs a person speaking. Memory feasibility of the FP32 model on the SM-T225 (about 2.7 GB total RAM) is unknown.
 
 ## Validation status
 
