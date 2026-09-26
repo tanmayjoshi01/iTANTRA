@@ -58,10 +58,21 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.activity:activity-compose:1.13.0")
 
+    // Used directly by the speech controller (StateFlow, recognition worker)
+    // and SpeechViewModel. Both already resolved transitively at exactly these
+    // versions (coroutines matches speech-engine); declared because app code
+    // now uses them directly.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel:2.9.4")
+
     testImplementation("junit:junit:4.13.2")
+    // Deterministic virtual-time dispatcher for SpeechController tests.
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 
     androidTestImplementation(composeBom)
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    // GrantPermissionRule, for exercising Start/Stop without the system dialog.
+    androidTestImplementation("androidx.test:rules:1.7.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
 }
