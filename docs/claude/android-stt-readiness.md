@@ -11,7 +11,7 @@ Record of the investigation into whether the existing ONNX-based Hindi STT pipel
 | 3 — Android build | `assembleDebugAndroidTest` / `compileDebugAndroidTestKotlin` succeed with the changes below |
 | Desktop ONNX comparison (outside the Level 1–6 scale) | Done: NeMo vs FP32 vs both INT8 variants, 3 real Hindi clips (section 2) |
 | 4 — Device, **OnePlus CPH2613** | **Reached** for the known-WAV milestone (FP32) and for load/timing of all three variants (section 4). Results committed in `speech-engine/validation-results/device/20260925T091736Z/`. |
-| 4 — Device, **Samsung SM-T225 (target)** | **Not reached.** The SM-T225 was never attached during the session; the only device attached was the OnePlus. |
+| 4 — Device, **Samsung SM-T225 (target)** | **Not reached.** On 2026-09-25 the SM-T225 was not attached. On 2026-09-26 it was attached, and the test harness built, installed and ran on it, but no model file was available to push (section 6). No inference has run on the SM-T225. |
 
 ## 1. Model interface (Step 1)
 
@@ -135,15 +135,16 @@ No variant is selected here. The measured options:
 
 **Why none of the OnePlus figures stand in for the SM-T225:**
 
-| | OnePlus CPH2613 | SM-T225 (published spec, [GSMArena](https://www.gsmarena.com/samsung_galaxy_tab_a7_lite-10933.php); not yet read from the unit) |
+| | OnePlus CPH2613 | SM-T225 (read from the unit on 2026-09-26: `speech-engine/validation-results/device/20260926T034633Z/device-info.txt`) |
 |---|---|---|
-| RAM | 7.4 GB | **3 GB or 4 GB** |
-| SoC / cores | Snapdragon `crow` | MediaTek Helio P22T (MT8768T), 8× Cortex-A53 |
-| ISA / CPU features | reports `asimddp`, `i8mm`, `bf16` | Cortex-A53 is ARMv8.0-A: no dot-product, no int8 matrix-multiply instructions |
+| RAM | 7.4 GB (`MemTotal` 7,411,588 kB) | **2.7 GB** (`MemTotal` 2,823,436 kB); `MemAvailable` 958,976 kB at the check; 3.0 GB swap |
+| SoC / cores | Snapdragon `crow` | MediaTek `mt6765` platform, `Hardware: MT8768WT`; `CPU part 0xd03` (Cortex-A53) |
+| ISA / CPU features | reports `asimddp`, `i8mm`, `bf16` | `fp asimd evtstrm aes pmull sha1 sha2 crc32 cpuid`: no `asimddp`, no `i8mm`, no `bf16` |
+| Android | 16 (SDK 36) | 14 (SDK 34) |
 
 What that implies, none of it measured yet:
 
-- **Memory:** FP32's 1.0–1.14 GB PSS, which already triggered low-memory kills on a 7.4 GB phone, is a large share of a 3–4 GB tablet.
+- **Memory:** FP32's 1.0–1.14 GB PSS on the OnePlus is more than the SM-T225's measured `MemAvailable` (about 0.94–0.96 GB across two checks on 2026-09-26). The OnePlus already had low-memory kills at that footprint. INT8 MatMul-only (0.47 GB PSS on the OnePlus) is the variant more likely to fit, but that is not measured on the SM-T225.
 - **Speed:** RTF there is unmeasured.
 - **INT8 benefit:** INT8's 1.78× gain on the OnePlus may be smaller on a core without dot-product instructions.
 
@@ -168,6 +169,30 @@ What that implies, none of it measured yet:
    - Call `release()` on lifecycle end.
    - Package only `arm64-v8a`. The test APK carries all four ABIs of `libonnxruntime.so` (x86_64 20.9 MB, x86 20.5 MB, arm64-v8a 17.4 MB, armeabi-v7a 12.6 MB), for a 78.6 MB APK.
 5. **Minor:** `src/main/resources/.../stt/tokens.txt` is bundled (byte-identical to `export/tokens.txt`), but no production code reads it. The recognizer still requires a caller-supplied tokens `File`. No change made.
+
+## 6. SM-T225 session, 2026-09-26 (branch `Tanmay-iTarntra`, run on Paras's machine)
+
+What ran, and what it showed:
+
+- `./gradlew :speech-engine:testDebugUnitTest --rerun`: 21/21 JVM tests pass (Level 2, desktop).
+- `speech-engine/scripts/run_stt_device_validation.sh`, unchanged:
+  - It recorded the device facts in section 4 and built and installed the instrumented-test APK on the SM-T225 (`installDebugAndroidTest`, BUILD SUCCESSFUL).
+  - It then stopped with `ERROR: missing local file /home/paras/itantra-stt-validation/export/indicconformer_hi.onnx`.
+- `am instrument … IndicConformerRecognizerInstrumentedTest#knownPcmClip_recognizesCorrectHindiText` on the SM-T225: **FAIL**, `AssertionError: Expected fixture not found at /storage/emulated/0/Android/data/com.itantra.speechengine.test/files/indicconformer_hi.onnx`.
+  - This confirms that only the model file is missing: the test APK, bundled WAV and reference run on the device.
+  - It is not an inference result.
+
+**Blocker:** Paras's machine has no `~/itantra-stt-validation/export/` directory and no `.onnx` or `.nemo` file anywhere on its filesystem. The exports exist only on Tanmay's validation machine.
+
+**To unblock:** copy the export directory from Tanmay's machine to `~/itantra-stt-validation/export/` on Paras's machine, outside Git. Check the files against the sha256 values in `validation-results/device/20260925T091736Z/pushed-files.txt`. The script pushes every file in its list regardless of `TEST_FILTER`, so the copy must include all of these:
+
+- `indicconformer_hi.onnx`
+- `tokens.txt`
+- `android_fixtures/real_hindi_features_1x80x1819.f32`
+- `android_fixtures/reference.txt`
+- unless `SKIP_INT8=1` is set, also `indicconformer_hi_int8.onnx` and `indicconformer_hi_int8_matmul.onnx`
+
+Then rerun the script unchanged.
 
 ## Changes made in this investigation
 

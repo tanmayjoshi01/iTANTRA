@@ -91,7 +91,7 @@ No confirmed execution evidence (in local build output, or anywhere else in the 
 
 ### Android STT readiness for the Samsung SM-T225 (2026-09-25)
 
-The target device is a Samsung SM-T225 (Android 14, arm64-v8a). All device evidence so far is from the OnePlus CPH2613 (7.4 GB RAM, dot-product/i8mm-capable CPU). The SM-T225's published spec is 3–4 GB RAM and 8× Cortex-A53 (ARMv8.0-A), so the OnePlus timing and memory figures above do not transfer to it. Full record: `android-stt-readiness.md`. In summary:
+The target device is a Samsung SM-T225 (Android 14, arm64-v8a). All device evidence so far is from the OnePlus CPH2613 (7.4 GB RAM, dot-product/i8mm-capable CPU). Read from the SM-T225 unit on 2026-09-26: 2.7 GB RAM (`MemTotal` 2,823,436 kB, about 0.96 GB available at the check), MediaTek MT8768WT with Cortex-A53 cores, and no `asimddp`/`i8mm` CPU features. The OnePlus timing and memory figures above therefore do not transfer to it. Full record: `android-stt-readiness.md`. In summary:
 
 - **Desktop comparison, measured on 3 real Hindi clips (34.2 s, 63 words):**
   - FP32 ONNX output is identical to NeMo/PyTorch on 3/3 clips.
@@ -100,7 +100,7 @@ The target device is a Samsung SM-T225 (Android 14, arm64-v8a). All device evide
   - INT8 MatMul+Conv is 2.6× slower than FP32. Desktop x86 numbers only.
 - **INT8 MatMul+Conv on Android: confirmed not loadable** on ORT Android 1.22.0 (`ORT_NOT_IMPLEMENTED` for `ConvInteger` with uint8 × int8 inputs, observed on device). Decision 006, `architecture.md` and the `IndicConformerRecognizer` KDoc are therefore accurate and unchanged. This is a runtime-build property, so it applies to the SM-T225 too.
 - **INT8 MatMul-only on Android: loads and runs** (OnePlus). It was 1.78× faster than FP32 at 2.1× less PSS on synthetic input. Its real-audio transcription on-device has not been run yet.
-- **Device status:** nothing has run on the SM-T225. It was never attached during the 2026-09-25 session.
+- **Device status:** no inference has run on the SM-T225. On 2026-09-26 the instrumented-test APK built, installed and ran there. The known-WAV test failed only because the model file was absent (`Expected fixture not found …/indicconformer_hi.onnx`). The model exports exist only on Tanmay's validation machine, not on Paras's machine where the tablet is attached. See `android-stt-readiness.md`, section 6.
 
 ### Level 5 / Level 6
 
