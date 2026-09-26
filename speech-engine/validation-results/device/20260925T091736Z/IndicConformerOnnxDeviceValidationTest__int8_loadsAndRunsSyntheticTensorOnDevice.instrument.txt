@@ -1,0 +1,50 @@
+INSTRUMENTATION_STATUS: class=com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest:
+INSTRUMENTATION_STATUS: test=int8_loadsAndRunsSyntheticTensorOnDevice
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stack=ai.onnxruntime.OrtException: Error code - ORT_NOT_IMPLEMENTED - message: Could not find an implementation for ConvInteger(10) node with name '/pre_encode/conv/conv.0/Conv_quant'
+	at ai.onnxruntime.OrtSession.createSession(Native Method)
+	at ai.onnxruntime.OrtSession.<init>(OrtSession.java:76)
+	at ai.onnxruntime.OrtEnvironment.createSession(OrtEnvironment.java:237)
+	at ai.onnxruntime.OrtEnvironment.createSession(OrtEnvironment.java:222)
+	at com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest.runModelTimingTest(IndicConformerOnnxDeviceValidationTest.kt:91)
+	at com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest.int8_loadsAndRunsSyntheticTensorOnDevice(IndicConformerOnnxDeviceValidationTest.kt:129)
+
+INSTRUMENTATION_STATUS: stream=
+Error in int8_loadsAndRunsSyntheticTensorOnDevice(com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest):
+ai.onnxruntime.OrtException: Error code - ORT_NOT_IMPLEMENTED - message: Could not find an implementation for ConvInteger(10) node with name '/pre_encode/conv/conv.0/Conv_quant'
+	at ai.onnxruntime.OrtSession.createSession(Native Method)
+	at ai.onnxruntime.OrtSession.<init>(OrtSession.java:76)
+	at ai.onnxruntime.OrtEnvironment.createSession(OrtEnvironment.java:237)
+	at ai.onnxruntime.OrtEnvironment.createSession(OrtEnvironment.java:222)
+	at com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest.runModelTimingTest(IndicConformerOnnxDeviceValidationTest.kt:91)
+	at com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest.int8_loadsAndRunsSyntheticTensorOnDevice(IndicConformerOnnxDeviceValidationTest.kt:129)
+
+INSTRUMENTATION_STATUS: test=int8_loadsAndRunsSyntheticTensorOnDevice
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: stream=
+
+Time: 1.289
+There was 1 failure:
+1) int8_loadsAndRunsSyntheticTensorOnDevice(com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest)
+ai.onnxruntime.OrtException: Error code - ORT_NOT_IMPLEMENTED - message: Could not find an implementation for ConvInteger(10) node with name '/pre_encode/conv/conv.0/Conv_quant'
+	at ai.onnxruntime.OrtSession.createSession(Native Method)
+	at ai.onnxruntime.OrtSession.<init>(OrtSession.java:76)
+	at ai.onnxruntime.OrtEnvironment.createSession(OrtEnvironment.java:237)
+	at ai.onnxruntime.OrtEnvironment.createSession(OrtEnvironment.java:222)
+	at com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest.runModelTimingTest(IndicConformerOnnxDeviceValidationTest.kt:91)
+	at com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest.int8_loadsAndRunsSyntheticTensorOnDevice(IndicConformerOnnxDeviceValidationTest.kt:129)
+
+FAILURES!!!
+Tests run: 1,  Failures: 1
+
+
+INSTRUMENTATION_CODE: -1

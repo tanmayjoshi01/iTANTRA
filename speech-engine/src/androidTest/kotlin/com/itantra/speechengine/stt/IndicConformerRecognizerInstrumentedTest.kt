@@ -44,6 +44,16 @@ class IndicConformerRecognizerInstrumentedTest {
     private val filesDir: File
         get() = InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null)!!
 
+    /**
+     * Model file to load from [filesDir]. Defaults to the FP32 export; can be
+     * overridden per run with `am instrument -e modelFile <name>` (see
+     * speech-engine/scripts/run_stt_device_validation.sh) so the same
+     * production-path milestone can be checked against the INT8 MatMul-only
+     * export without duplicating this test.
+     */
+    private val modelFileName: String
+        get() = InstrumentationRegistry.getArguments().getString("modelFile", "indicconformer_hi.onnx")
+
     private fun requireExternalFile(name: String): File {
         val f = File(filesDir, name)
         assertTrue(
@@ -89,7 +99,7 @@ class IndicConformerRecognizerInstrumentedTest {
 
     @Test
     fun knownPcmClip_recognizesCorrectHindiText() {
-        val modelFile = requireExternalFile("indicconformer_hi.onnx")
+        val modelFile = requireExternalFile(modelFileName)
         val tokensFile = requireExternalFile("tokens.txt")
 
         val samples = readBundledPcm16MonoWav("known_hindi_clip.wav")
@@ -115,6 +125,7 @@ class IndicConformerRecognizerInstrumentedTest {
 
         println(
             "REAL ANDROID MEASUREMENT [Milestone1 known-PCM] " +
+                "model=$modelFileName " +
                 "loadTimeMs=${loadTimeNs / 1_000_000} " +
                 "inferenceTimeMs=${result.inferenceTimeMs} " +
                 "audioDurationMs=$durationMs " +
@@ -137,7 +148,7 @@ class IndicConformerRecognizerInstrumentedTest {
     /** Repeats recognition 3x on the same clip to check for stability/crashes, not a benchmark. */
     @Test
     fun knownPcmClip_repeatedInferenceIsStable() {
-        val modelFile = requireExternalFile("indicconformer_hi.onnx")
+        val modelFile = requireExternalFile(modelFileName)
         val tokensFile = requireExternalFile("tokens.txt")
         val samples = readBundledPcm16MonoWav("known_hindi_clip.wav")
         val durationMs = (samples.size * 1000L) / AudioConfig.DEFAULT_SAMPLE_RATE_HZ
@@ -147,7 +158,10 @@ class IndicConformerRecognizerInstrumentedTest {
         val texts = (1..3).map { recognizer.recognize(segment).text }
         recognizer.release()
 
-        println("REAL ANDROID MEASUREMENT [Milestone1 stability] 3 runs identical=${texts.toSet().size == 1}")
+        println(
+            "REAL ANDROID MEASUREMENT [Milestone1 stability] model=$modelFileName " +
+                "3 runs identical=${texts.toSet().size == 1}",
+        )
         assertEquals("repeated inference on identical input should be deterministic", 1, texts.toSet().size)
     }
 }

@@ -1,0 +1,20 @@
+serial=R9ZT40D532B
+run_utc=20260926T034633Z
+ro.product.manufacturer=samsung
+ro.product.model=SM-T225
+ro.build.version.release=14
+ro.build.version.sdk=34
+ro.product.cpu.abi=arm64-v8a
+ro.board.platform=mt6765
+ro.hardware=mt6765
+--- /proc/cpuinfo (Features, CPU part, unique) ---
+CPU part	: 0xd03
+Features	: fp asimd evtstrm aes pmull sha1 sha2 crc32 cpuid
+Hardware	: MT8768WT
+--- /proc/meminfo ---
+MemTotal:        2823436 kB
+MemAvailable:     958976 kB
+SwapTotal:       3145724 kB
+--- storage ---
+Filesystem      Size Used Avail Use% Mounted on
+/dev/fuse        22G  12G   10G  53% /storage/emulated

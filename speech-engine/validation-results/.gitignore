@@ -1,0 +1,3 @@
+# Full-device logcat dumps contain every app on the (personal) test device.
+# Only the test-process-filtered *.logcat.txt files are meant to be committed.
+*.logcat-full.txt

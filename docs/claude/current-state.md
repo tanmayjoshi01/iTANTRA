@@ -2,7 +2,7 @@
 
 This is the single most important file to keep accurate: it records what is actually true about the repository right now, distinct from what is planned. If this file goes stale relative to the actual repository, treat the repository as the source of truth and flag the discrepancy rather than trusting this file blindly.
 
-**Recorded as of:** September 2026. Updated 2026-09-23 by a documentation-accuracy audit (in preparation for Paras beginning work on this branch) that compared this file against the actual repository source, git history, and local build/test output. Every change made in that pass is reflected below and is traceable to specific source files, commits, or local build artifacts named inline — nothing here was assumed or estimated.
+**Recorded as of:** September 2026. Updated 2026-09-25 with the Android STT readiness investigation (`android-stt-readiness.md`); the sections touched are "Test sources", Level 2, Level 4, "Android STT readiness" and open items 10–11. Updated 2026-09-23 by a documentation-accuracy audit (in preparation for Paras beginning work on this branch) that compared this file against the actual repository source, git history, and local build/test output. Every change made in that pass is reflected below and is traceable to specific source files, commits, or local build artifacts named inline — nothing here was assumed or estimated.
 
 ## Identity
 
@@ -43,6 +43,7 @@ This is the single most important file to keep accurate: it records what is actu
 
 - JVM unit tests: `speech-engine/src/test` — `EnergyZcrVoiceActivityDetectorTest`, `SpeechSegmenterTest`, `MelSpectrogramFeatureExtractorTest`.
 - Android instrumented test sources: `speech-engine/src/androidTest` — `AudioRecorderInstrumentedTest`, `IndicConformerOnnxDeviceValidationTest`, `IndicConformerRecognizerInstrumentedTest`, `MicrophoneToHindiTextInstrumentedTest`. See Validation status below for exactly which of these have confirmed on-device execution evidence — writing a test and running it are tracked separately in this file.
+- Device-run script: `speech-engine/scripts/run_stt_device_validation.sh` (added 2026-09-25). It pushes the models and fixtures, runs the STT instrumented tests one method at a time, and writes results to the non-gitignored `speech-engine/validation-results/device/`. Not yet executed on any device. See `android-stt-readiness.md`.
 
 See `architecture.md` for how all of these fit together.
 
@@ -84,7 +85,7 @@ Device validated (Level 4, Samsung SM-T225, Android 14, 2026-09-25): `./gradlew 
 
 ### Level 2 — JVM unit tests: PASS
 
-**21 JVM tests pass**: 9 in `EnergyZcrVoiceActivityDetectorTest`, 11 in `SpeechSegmenterTest`, 1 in `MelSpectrogramFeatureExtractorTest` (the last checks the Stage 2 feature extractor's output against a NeMo-computed reference for a known Hindi clip). Confirmed from `speech-engine/build/test-results/testDebugUnitTest/TEST-*.xml`, timestamped 2026-09-13T04:47 UTC. This local build output is gitignored (`build/` is excluded via `.gitignore`) — it is evidence from this development machine, not something committed to the repository or guaranteed to exist after a fresh clone.
+**21 JVM tests pass**: 9 in `EnergyZcrVoiceActivityDetectorTest`, 11 in `SpeechSegmenterTest`, 1 in `MelSpectrogramFeatureExtractorTest` (the last checks the Stage 2 feature extractor's output against a NeMo-computed reference for a known Hindi clip). Confirmed from `speech-engine/build/test-results/testDebugUnitTest/TEST-*.xml`, timestamped 2026-09-13T04:47 UTC. Re-run on 2026-09-25 with `./gradlew :speech-engine:testDebugUnitTest --rerun`: 21/21 pass (report timestamp 2026-09-25T09:15 UTC). This local build output is gitignored (`build/` is excluded via `.gitignore`) — it is evidence from this development machine, not something committed to the repository or guaranteed to exist after a fresh clone.
 
 ### Level 3 — Android build: confirmed working
 
@@ -102,21 +103,44 @@ Exactly one instrumented test has confirmed on-device execution evidence:
 
   Per the test's own docstring and assertions, this is a manual-inspection-only pass: it asserts that a non-empty segment was captured and recognized without crashing, **not** that the recognized text is correct. No transcription-accuracy or WER claim should be drawn from this single run.
 
+**2026-09-25, same OnePlus CPH2613** (Android 16), run via `speech-engine/scripts/run_stt_device_validation.sh`. Unlike the run above, this evidence is **committed** in `speech-engine/validation-results/device/20260925T091736Z/` (`summary.txt`, per-test instrumentation output, test-process logcat). Details: `android-stt-readiness.md`, section 3.
+
+- **`IndicConformerRecognizerInstrumentedTest.knownPcmClip_recognizesCorrectHindiText`** — **PASSED**, FP32. This is the known-WAV milestone: bundled 18.18 s PCM16 clip → Kotlin features → ORT → CTC → text, **exact match** with the reference.
+  - Load 4,829 ms; recognize 6,029 ms (RTF 0.33).
+  - PSS 1.02 GB after load, 1.14 GB after inference.
+  - The low-memory killer terminated 4 cached background apps during this test; the test process itself was not killed.
+- **`IndicConformerRecognizerInstrumentedTest.knownPcmClip_repeatedInferenceIsStable`** — **PASSED**, FP32. 3 identical results.
+- **`IndicConformerOnnxDeviceValidationTest`:**
+  - `fp32_realHindiFeatures_ctcGreedyDecode_onDevice` **PASSED**: exact match, 4,763 ms.
+  - `fp32_loadsAndRunsSyntheticTensorOnDevice` **PASSED**: 569 ms mean, PSS ≈ 1.01 GB.
+  - `int8_loadsAndRunsSyntheticTensorOnDevice` **FAILED** at session creation: `ORT_NOT_IMPLEMENTED ... ConvInteger(10)`.
+  - `int8Matmul_loadsAndRunsSyntheticTensorOnDevice` (added 2026-09-25) **PASSED**: 319 ms mean, PSS 0.47 GB.
+
 No confirmed execution evidence (in local build output, or anywhere else in the repository) was found for:
 
 - `AudioRecorderInstrumentedTest` — Stage 1's own dedicated device test for `AudioRecorder` in isolation. (Real microphone capture *was* exercised on-device, but only indirectly, as part of the STT pipeline test above — not through this dedicated test.)
-- `IndicConformerOnnxDeviceValidationTest` — on-device ONNX Runtime timing/RAM feasibility checks.
-- `IndicConformerRecognizerInstrumentedTest` — the test that asserts exact-match recognition against a known reference transcript, and repeated-inference stability.
+- `IndicConformerRecognizerInstrumentedTest` run with the INT8 MatMul-only model (`-e modelFile indicconformer_hi_int8_matmul.onnx`, parameter added 2026-09-25; the device was disconnected before it could run).
 
-These three must be treated as **written, not confirmed executed** — not as passing and not as failing — until they are actually run on a device and their output is observed and recorded here.
+**Important caveat for handoff:** the 2026-09-13 Level 3/4 evidence above lives only in `speech-engine/build/`, which is gitignored (the 2026-09-25 run is committed, see above). None of it will be present when Paras (or anyone else) clones this branch or `main` fresh. If this validation needs to be relied on going forward, it should be re-run and its output captured somewhere version-controlled, rather than assumed to still exist or to transfer with the repository.
 
-**Important caveat for handoff:** all of the Level 3/4 evidence above lives only in `speech-engine/build/`, which is gitignored. None of it will be present when Paras (or anyone else) clones this branch or `main` fresh. If this validation needs to be relied on going forward, it should be re-run and its output captured somewhere version-controlled, rather than assumed to still exist or to transfer with the repository.
+### Android STT readiness for the Samsung SM-T225 (2026-09-25)
+
+The target device is a Samsung SM-T225 (Android 14, arm64-v8a). All device evidence so far is from the OnePlus CPH2613 (7.4 GB RAM, dot-product/i8mm-capable CPU). Read from the SM-T225 unit on 2026-09-26: 2.7 GB RAM (`MemTotal` 2,823,436 kB, about 0.96 GB available at the check), MediaTek MT8768WT with Cortex-A53 cores, and no `asimddp`/`i8mm` CPU features. The OnePlus timing and memory figures above therefore do not transfer to it. Full record: `android-stt-readiness.md`. In summary:
+
+- **Desktop comparison, measured on 3 real Hindi clips (34.2 s, 63 words):**
+  - FP32 ONNX output is identical to NeMo/PyTorch on 3/3 clips.
+  - Both INT8 exports change 2 of 63 words, in words NeMo already got wrong. WER vs reference is 6.35% for every engine.
+  - INT8 MatMul-only was the fastest on desktop (RTF 0.074 vs FP32 0.086), with the lowest peak RSS (573 MB vs 973 MB).
+  - INT8 MatMul+Conv is 2.6× slower than FP32. Desktop x86 numbers only.
+- **INT8 MatMul+Conv on Android: confirmed not loadable** on ORT Android 1.22.0 (`ORT_NOT_IMPLEMENTED` for `ConvInteger` with uint8 × int8 inputs, observed on device). Decision 006, `architecture.md` and the `IndicConformerRecognizer` KDoc are therefore accurate and unchanged. This is a runtime-build property, so it applies to the SM-T225 too.
+- **INT8 MatMul-only on Android: loads and runs** (OnePlus). It was 1.78× faster than FP32 at 2.1× less PSS on synthetic input. Its real-audio transcription on-device has not been run yet.
+- **Device status:** no inference has run on the SM-T225. On 2026-09-26 the instrumented-test APK built, installed and ran there. The known-WAV test failed only because the model file was absent (`Expected fixture not found …/indicconformer_hi.onnx`). The model exports exist only on Tanmay's validation machine, not on Paras's machine where the tablet is attached. See `android-stt-readiness.md`, section 6.
 
 ### Level 5 / Level 6
 
 Not applicable yet — no transport exists (Level 5) and no benchmarking harness exists (Level 6). No WER, latency, CPU, or RAM figure beyond the single-run numbers logged above (which are one observation, not a benchmark) has been produced.
 
-**Neither Stage 1 nor Stage 2 should be represented as fully device-validated.** Stage 1: Level 2 fully reached; Level 3 confirmed working; Level 4 reached for the combined pipeline via the STT test above, but not via Stage 1's own dedicated instrumented test. Stage 2: Level 2 reached for the feature extractor; Level 4 reached once, for one utterance, without an accuracy assertion; WER (Level 6) not measured.
+**Neither Stage 1 nor Stage 2 should be represented as fully device-validated.** Stage 1: Level 2 fully reached; Level 3 confirmed working; Level 4 reached for the combined pipeline via the STT test above, but not via Stage 1's own dedicated instrumented test. Stage 2: Level 2 reached for the feature extractor. Level 4 reached on the OnePlus CPH2613: once for a spoken utterance without an accuracy assertion (2026-09-13), and once for a known WAV clip with an exact-match assertion (2026-09-25, FP32). Level 4 is not reached on the SM-T225 target device. WER (Level 6) not measured.
 
 ## Note on stage-gating
 
@@ -127,14 +151,16 @@ Before this audit, `stages.md` recorded Stage 2 as "Next (not started)" and this
 1. ~~Android SDK setup~~ — evidenced as working (see Level 3 above); still worth the developer explicitly confirming the SDK/build-tools versions in use, since this file cannot verify a colleague's separate machine.
 2. ~~Android build validation~~ — evidenced (see Level 3 above), with the local/gitignored caveat noted there.
 3. AudioRecord validation — exercised indirectly on-device via the STT pipeline test; **Stage 1's own dedicated `AudioRecorderInstrumentedTest` still has no confirmed run.**
-4. OnePlus Nord CE4 microphone test — one PASS evidenced (see Level 4 above), for one utterance, without an accuracy claim; the two other STT device tests remain unconfirmed.
+4. OnePlus Nord CE4 microphone test — one PASS evidenced (see Level 4 above), for one utterance, without an accuracy claim. The two other STT device tests were run on the same phone on 2026-09-25 (see Level 4).
 5. Record the IndicConformer model's own license (distinct from ONNX Runtime's, which is recorded as MIT) — see `decisions.md`, Decision 006. Not yet done.
 6. Decide and document a model-file distribution mechanism (the ~470 MB model is not committed to the repository) — see `architecture.md`.
 7. Measure WER on a defined Hindi test set — not yet done.
 8. Git checkpoint / history cleanup
 9. Manual commit / push
+10. Run `speech-engine/scripts/run_stt_device_validation.sh` on the Samsung SM-T225 (target device). This covers the known-WAV milestone with FP32 and with INT8 MatMul-only, plus load, timing and memory for all three exports. Commit the resulting `speech-engine/validation-results/device/<stamp>/` directory. See `android-stt-readiness.md`.
+11. ~~Resolve the INT8 `ConvInteger` discrepancy~~ — resolved 2026-09-25 on-device: the INT8 MatMul+Conv export does not load on ORT Android 1.22.0, confirming the existing documentation. See "Android STT readiness" above.
 
-Items 8–9 are Git write operations: Claude Code must not perform them under any circumstance without explicit instruction (see `instructions.md`). Items 1–7 remain the developer's to resume or resolve; this audit did not perform any of them (no SDK install, no build, no device test, no model download, no Git write operation) and is documentation-only.
+Items 8–9 are Git write operations: Claude Code must not perform them under any circumstance without explicit instruction (see `instructions.md`). Items 1–7 and 10 remain the developer's to resume or resolve; this audit did not perform any of them (no SDK install, no build, no device test, no model download, no Git write operation) and is documentation-only.
 
 ## Next stage
 

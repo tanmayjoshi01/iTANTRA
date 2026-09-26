@@ -1,0 +1,306 @@
+{
+  "methodology": {
+    "host": "desktop x86_64, 4 cores, 7.6 GB RAM - NOT Android ARM64",
+    "warmup_runs": 1,
+    "measured_runs": 3,
+    "onnx_provider": "CPUExecutionProvider, default SessionOptions",
+    "onnxruntime_version": "1.30.0",
+    "torch_version": "2.14.0+cpu",
+    "features": "model.preprocessor output, computed once per clip and shared by all ONNX variants",
+    "nemo_timing": "model.transcribe() end-to-end (includes preprocessing + CTC decode)",
+    "onnx_timing": "sess.run() only (features -> logprobs); decode excluded"
+  },
+  "summary": {
+    "nemo_pytorch": {
+      "load_time_s": 90.156,
+      "peak_rss_mb": 1531.4
+    },
+    "onnx_fp32": {
+      "model_file": "indicconformer_hi.onnx",
+      "model_file_mb": 470.2,
+      "session_load_time_s": 7.984,
+      "peak_rss_mb_after_inference": 973.3
+    },
+    "onnx_int8_full": {
+      "model_file": "indicconformer_hi_int8.onnx",
+      "model_file_mb": 133.9,
+      "session_load_time_s": 3.686,
+      "peak_rss_mb_after_inference": 666.3
+    },
+    "onnx_int8_matmul": {
+      "model_file": "indicconformer_hi_int8_matmul.onnx",
+      "model_file_mb": 187.9,
+      "session_load_time_s": 4.629,
+      "peak_rss_mb_after_inference": 572.8
+    }
+  },
+  "clips": [
+    {
+      "file": "7251883826251297781.wav",
+      "duration_s": 9.36,
+      "reference_transcript": "स्कीइंग मार्ग को एक हाईकिंग लंबी पैदल यात्रा मार्ग जैसा ही सोचें।",
+      "nemo_pytorch": {
+        "file": "7251883826251297781.wav",
+        "duration_s": 9.36,
+        "feature_shape": [
+          1,
+          80,
+          937
+        ],
+        "feature_length": 937,
+        "preprocessor_times_s": [
+          0.0092,
+          0.0061,
+          0.0047
+        ],
+        "preprocessor_mean_s": 0.0067,
+        "text": "स्कीइंग मार्क को एक हाइकम लंबी पैदल यात्रा मार्ग जैसा ही सोचें",
+        "all_runs_identical_text": true,
+        "transcribe_times_s": [
+          1.034,
+          1.0676,
+          0.8964
+        ],
+        "transcribe_mean_s": 0.9994,
+        "rtf": 0.1068,
+        "wer_vs_reference": 0.25,
+        "cer_vs_reference": 0.0923
+      },
+      "onnx_fp32": {
+        "file": "7251883826251297781.wav",
+        "output_frames": 235,
+        "text": "स्कीइंग मार्क को एक हाइकम लंबी पैदल यात्रा मार्ग जैसा ही सोचें",
+        "all_runs_identical_text": true,
+        "inference_times_s": [
+          0.7573,
+          0.7514,
+          0.7458
+        ],
+        "inference_mean_s": 0.7515,
+        "rtf_model_only": 0.0803,
+        "rtf_incl_nemo_preprocessor": 0.081,
+        "wer_vs_reference": 0.25,
+        "cer_vs_reference": 0.0923,
+        "wer_vs_nemo": 0.0,
+        "cer_vs_nemo": 0.0,
+        "exact_match_vs_nemo": true
+      },
+      "onnx_int8_full": {
+        "file": "7251883826251297781.wav",
+        "output_frames": 235,
+        "text": "स्कीइंग मार्क को एक हाइकिम लंबी पैदल यात्रा मार्ग जैसा ही सोचें",
+        "all_runs_identical_text": true,
+        "inference_times_s": [
+          2.192,
+          2.1032,
+          2.0714
+        ],
+        "inference_mean_s": 2.1222,
+        "rtf_model_only": 0.2267,
+        "rtf_incl_nemo_preprocessor": 0.2274,
+        "wer_vs_reference": 0.25,
+        "cer_vs_reference": 0.0769,
+        "wer_vs_nemo": 0.0833,
+        "cer_vs_nemo": 0.0161,
+        "exact_match_vs_nemo": false
+      },
+      "onnx_int8_matmul": {
+        "file": "7251883826251297781.wav",
+        "output_frames": 235,
+        "text": "स्कीइंग मार्क को एक हाइकिन लंबी पैदल यात्रा मार्ग जैसा ही सोचें",
+        "all_runs_identical_text": true,
+        "inference_times_s": [
+          0.6468,
+          0.6485,
+          0.6167
+        ],
+        "inference_mean_s": 0.6373,
+        "rtf_model_only": 0.0681,
+        "rtf_incl_nemo_preprocessor": 0.0688,
+        "wer_vs_reference": 0.25,
+        "cer_vs_reference": 0.0769,
+        "wer_vs_nemo": 0.0833,
+        "cer_vs_nemo": 0.0323,
+        "exact_match_vs_nemo": false
+      }
+    },
+    {
+      "file": "14585676639063535081.wav",
+      "duration_s": 6.66,
+      "reference_transcript": "मनोविज्ञान सहित विज्ञान के सभी मामलों पर अरस्तू के विचारों को स्वीकार किया जाता है",
+      "nemo_pytorch": {
+        "file": "14585676639063535081.wav",
+        "duration_s": 6.66,
+        "feature_shape": [
+          1,
+          80,
+          667
+        ],
+        "feature_length": 667,
+        "preprocessor_times_s": [
+          0.005,
+          0.0049,
+          0.0044
+        ],
+        "preprocessor_mean_s": 0.0048,
+        "text": "मनोविज्ञान सहित विज्ञान के सभी मामलों पर अतूस्त के विचारों को स्वीकार किया जाता है",
+        "all_runs_identical_text": true,
+        "transcribe_times_s": [
+          0.6264,
+          0.8126,
+          0.6773
+        ],
+        "transcribe_mean_s": 0.7054,
+        "rtf": 0.1059,
+        "wer_vs_reference": 0.0667,
+        "cer_vs_reference": 0.0366
+      },
+      "onnx_fp32": {
+        "file": "14585676639063535081.wav",
+        "output_frames": 167,
+        "text": "मनोविज्ञान सहित विज्ञान के सभी मामलों पर अतूस्त के विचारों को स्वीकार किया जाता है",
+        "all_runs_identical_text": true,
+        "inference_times_s": [
+          0.5073,
+          0.5146,
+          0.5537
+        ],
+        "inference_mean_s": 0.5252,
+        "rtf_model_only": 0.0789,
+        "rtf_incl_nemo_preprocessor": 0.0796,
+        "wer_vs_reference": 0.0667,
+        "cer_vs_reference": 0.0366,
+        "wer_vs_nemo": 0.0,
+        "cer_vs_nemo": 0.0,
+        "exact_match_vs_nemo": true
+      },
+      "onnx_int8_full": {
+        "file": "14585676639063535081.wav",
+        "output_frames": 167,
+        "text": "मनोविज्ञान सहित विज्ञान के सभी मामलों पर अस्तूत के विचारों को स्वीकार किया जाता है",
+        "all_runs_identical_text": true,
+        "inference_times_s": [
+          1.4338,
+          1.4556,
+          1.4213
+        ],
+        "inference_mean_s": 1.4369,
+        "rtf_model_only": 0.2158,
+        "rtf_incl_nemo_preprocessor": 0.2165,
+        "wer_vs_reference": 0.0667,
+        "cer_vs_reference": 0.0244,
+        "wer_vs_nemo": 0.0667,
+        "cer_vs_nemo": 0.0488,
+        "exact_match_vs_nemo": false
+      },
+      "onnx_int8_matmul": {
+        "file": "14585676639063535081.wav",
+        "output_frames": 167,
+        "text": "मनोविज्ञान सहित विज्ञान के सभी मामलों पर अस्तूस्त के विचारों को स्वीकार किया जाता है",
+        "all_runs_identical_text": true,
+        "inference_times_s": [
+          0.4413,
+          0.4182,
+          0.4201
+        ],
+        "inference_mean_s": 0.4265,
+        "rtf_model_only": 0.064,
+        "rtf_incl_nemo_preprocessor": 0.0648,
+        "wer_vs_reference": 0.0667,
+        "cer_vs_reference": 0.0488,
+        "wer_vs_nemo": 0.0667,
+        "cer_vs_nemo": 0.0244,
+        "exact_match_vs_nemo": false
+      }
+    },
+    {
+      "file": "579454037541708253.wav",
+      "duration_s": 18.18,
+      "reference_transcript": "बाहरी द्वीपों पर क्रेडिट कार्ड शायद स्वीकार नहीं किए जाएंगे हालांकि ब्रिटिश और संयुक्त राज्य की मुद्रा स्वीकार्य होगी यह निर्धारित करने के लिए कि स्वीकार्य भुगतान विधि क्या है मालिकों से पहले ही पूछ लें",
+      "nemo_pytorch": {
+        "file": "579454037541708253.wav",
+        "duration_s": 18.18,
+        "feature_shape": [
+          1,
+          80,
+          1819
+        ],
+        "feature_length": 1819,
+        "preprocessor_times_s": [
+          0.0106,
+          0.0092,
+          0.0103
+        ],
+        "preprocessor_mean_s": 0.01,
+        "text": "बाहरी द्वीपों पर क्रेडिट कार्ड शायद स्वीकार नहीं किए जाएंगे हालांकि ब्रिटिश और संयुक्त राज्य की मुद्रा स्वीकार्य होगी यह निर्धारित करने के लिए कि स्वीकार्य भुगतान विधि क्या है मालिकों से पहले ही पूछ लें",
+        "all_runs_identical_text": true,
+        "transcribe_times_s": [
+          1.822,
+          1.7546,
+          1.8562
+        ],
+        "transcribe_mean_s": 1.811,
+        "rtf": 0.0996,
+        "wer_vs_reference": 0.0,
+        "cer_vs_reference": 0.0
+      },
+      "onnx_fp32": {
+        "file": "579454037541708253.wav",
+        "output_frames": 455,
+        "text": "बाहरी द्वीपों पर क्रेडिट कार्ड शायद स्वीकार नहीं किए जाएंगे हालांकि ब्रिटिश और संयुक्त राज्य की मुद्रा स्वीकार्य होगी यह निर्धारित करने के लिए कि स्वीकार्य भुगतान विधि क्या है मालिकों से पहले ही पूछ लें",
+        "all_runs_identical_text": true,
+        "inference_times_s": [
+          1.6041,
+          1.7452,
+          1.6191
+        ],
+        "inference_mean_s": 1.6561,
+        "rtf_model_only": 0.0911,
+        "rtf_incl_nemo_preprocessor": 0.0916,
+        "wer_vs_reference": 0.0,
+        "cer_vs_reference": 0.0,
+        "wer_vs_nemo": 0.0,
+        "cer_vs_nemo": 0.0,
+        "exact_match_vs_nemo": true
+      },
+      "onnx_int8_full": {
+        "file": "579454037541708253.wav",
+        "output_frames": 455,
+        "text": "बाहरी द्वीपों पर क्रेडिट कार्ड शायद स्वीकार नहीं किए जाएंगे हालांकि ब्रिटिश और संयुक्त राज्य की मुद्रा स्वीकार्य होगी यह निर्धारित करने के लिए कि स्वीकार्य भुगतान विधि क्या है मालिकों से पहले ही पूछ लें",
+        "all_runs_identical_text": true,
+        "inference_times_s": [
+          4.1651,
+          4.2357,
+          4.1895
+        ],
+        "inference_mean_s": 4.1968,
+        "rtf_model_only": 0.2308,
+        "rtf_incl_nemo_preprocessor": 0.2314,
+        "wer_vs_reference": 0.0,
+        "cer_vs_reference": 0.0,
+        "wer_vs_nemo": 0.0,
+        "cer_vs_nemo": 0.0,
+        "exact_match_vs_nemo": true
+      },
+      "onnx_int8_matmul": {
+        "file": "579454037541708253.wav",
+        "output_frames": 455,
+        "text": "बाहरी द्वीपों पर क्रेडिट कार्ड शायद स्वीकार नहीं किए जाएंगे हालांकि ब्रिटिश और संयुक्त राज्य की मुद्रा स्वीकार्य होगी यह निर्धारित करने के लिए कि स्वीकार्य भुगतान विधि क्या है मालिकों से पहले ही पूछ लें",
+        "all_runs_identical_text": true,
+        "inference_times_s": [
+          1.5296,
+          1.4605,
+          1.3823
+        ],
+        "inference_mean_s": 1.4575,
+        "rtf_model_only": 0.0802,
+        "rtf_incl_nemo_preprocessor": 0.0807,
+        "wer_vs_reference": 0.0,
+        "cer_vs_reference": 0.0,
+        "wer_vs_nemo": 0.0,
+        "cer_vs_nemo": 0.0,
+        "exact_match_vs_nemo": true
+      }
+    }
+  ]
+}

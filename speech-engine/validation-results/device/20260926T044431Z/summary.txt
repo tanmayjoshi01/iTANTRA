@@ -1,0 +1,19 @@
+[PASS] com.itantra.speechengine.stt.IndicConformerRecognizerInstrumentedTest#knownPcmClip_recognizesCorrectHindiText
+  REAL ANDROID MEASUREMENT [Milestone1 known-PCM] model=indicconformer_hi.onnx loadTimeMs=10557 inferenceTimeMs=16529 audioDurationMs=18180 rtf=0.9091859185918592 ramAfterLoad=totalPss=947090KB ramAfterInfer=totalPss=1060065KB
+  REAL ANDROID MEASUREMENT [Milestone1 known-PCM] recognized="बाहरी द्वीपों पर क्रेडिट कार्ड शायद स्वीकार नहीं किए जाएंगे हालांकि ब्रिटिश और संयुक्त राज्य की मुद्रा स्वीकार्य होगी यह निर्धारित करने के लिए कि स्वीकार्य भुगतान विधि क्या है मालिकों से पहले ही पूछ लें"
+  REAL ANDROID MEASUREMENT [Milestone1 known-PCM] reference="बाहरी द्वीपों पर क्रेडिट कार्ड शायद स्वीकार नहीं किए जाएंगे हालांकि ब्रिटिश और संयुक्त राज्य की मुद्रा स्वीकार्य होगी यह निर्धारित करने के लिए कि स्वीकार्य भुगतान विधि क्या है मालिकों से पहले ही पूछ लें"
+  REAL ANDROID MEASUREMENT [Milestone1 known-PCM] exactMatch=true
+  lowmemorykiller kills of other apps during this test: 0; test process killed/died: 0
+[PASS] com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest#fp32_realHindiFeatures_ctcGreedyDecode_onDevice
+  REAL ANDROID MEASUREMENT [tokens] loaded 5633 tokens, blankId=5632
+  REAL ANDROID MEASUREMENT [FP32 real audio] frames=455 vocabSize=5633 inferenceTimeMs=10011.4
+  REAL ANDROID MEASUREMENT [FP32 real audio] decoded="बाहरी द्वीपों पर क्रेडिट कार्ड शायद स्वीकार नहीं किए जाएंगे हालांकि ब्रिटिश और संयुक्त राज्य की मुद्रा स्वीकार्य होगी यह निर्धारित करने के लिए कि स्वीकार्य भुगतान विधि क्या है मालिकों से पहले ही पूछ लें"
+  REAL ANDROID MEASUREMENT [FP32 real audio] reference="बाहरी द्वीपों पर क्रेडिट कार्ड शायद स्वीकार नहीं किए जाएंगे हालांकि ब्रिटिश और संयुक्त राज्य की मुद्रा स्वीकार्य होगी यह निर्धारित करने के लिए कि स्वीकार्य भुगतान विधि क्या है मालिकों से पहले ही पूछ लें"
+  REAL ANDROID MEASUREMENT [FP32 real audio] exactMatch=true
+  lowmemorykiller kills of other apps during this test: 0; test process killed/died: 0
+[PASS] com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest#fp32_loadsAndRunsSyntheticTensorOnDevice
+  REAL ANDROID MEASUREMENT [FP32] file=indicconformer_hi.onnx size=470.2MB loadTime=9804.8ms inferenceRunsMs=[1462.085616, 1465.053769, 1469.528308, 1577.030692, 1469.836846] meanMs=1488.7 ramAfterLoad=totalPss=957792KB (nativePss=921901KB, dalvikPss=1060KB) ramAfterInfer=totalPss=972088KB (nativePss=937748KB, dalvikPss=732KB)
+  lowmemorykiller kills of other apps during this test: 0; test process killed/died: 0
+[PASS] com.itantra.speechengine.stt.IndicConformerRecognizerInstrumentedTest#knownPcmClip_repeatedInferenceIsStable
+  REAL ANDROID MEASUREMENT [Milestone1 stability] model=indicconformer_hi.onnx 3 runs identical=true
+  lowmemorykiller kills of other apps during this test: 0; test process killed/died: 0

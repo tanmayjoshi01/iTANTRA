@@ -1,0 +1,47 @@
+09-25 14:50:18.097 I/libc    (18749): SetHeapTaggingLevel: tag level set to 0
+09-25 14:50:18.104 I/eechengine.test(18749): Late-enabling -Xcheck:jni
+09-25 14:50:18.137 E/eechengine.test(18749): Unknown bits set in runtime_flags: 0x40000000
+09-25 14:50:18.137 I/eechengine.test(18749): Using generational CollectorTypeCMC GC.
+09-25 14:50:18.153 D/nativeloader(18749): Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+09-25 14:50:18.162 D/OplusActivityThreadExtImpl(18749): java.lang.NoSuchMethodException: dalvik.system.VMRuntime.SupressionGC [int, int]
+09-25 14:50:18.163 W/libc    (18749): Access denied finding property "persist.vendor.sys.activitylog"
+09-25 14:50:18.163 I/OneTrace(18749): Mark active for pid=18749? true
+09-25 14:50:18.164 D/cutils-dev(18749): otrace_set_tracing_enabled? true tag:0
+09-25 14:50:18.164 D/cutils-dev(18749): properties changed in otrace_seq_number_changed!
+09-25 14:50:18.220 D/OplusActivityManager(18749): get AMS extension: android.os.BinderProxy@adb9662
+09-25 14:50:18.222 D/OplusAppHeapManager(18749): java.lang.NoSuchMethodException: dalvik.system.VMRuntime.updateProcessValue [int, int, int]
+09-25 14:50:18.225 D/CompactWindowAppManager(18749): initCompactApplicationInfo CompactMode: , NormalMode: 
+09-25 14:50:18.231 V/Configuration(18749): Updating configuration, locales updated from [] to [en_GB]
+09-25 14:50:18.233 D/OplusScrollToTopManager(18749): setIsInWhiteList false
+09-25 14:50:18.233 D/OplusViewDebugManager(18749): OplusViewDebugManager Constructor android.view.debug.OplusViewDebugManager@e67b8b0 [mHasViewDebugProperty true] [mHasMsgDebugProperty false] [DEBUG false] [EXTRAINFOENABLE false] [LIGHT_OS false]
+09-25 14:50:18.252 W/libc    (18749): Access denied finding property "ro.odm.prev.product.name"
+09-25 14:50:18.256 D/ApplicationLoaders(18749): Returning zygote-cached class loader: /system/framework/android.test.base.jar
+09-25 14:50:18.264 D/nativeloader(18749): Configuring clns-9 for other apk /system/framework/android.test.mock.jar. target_sdk_version=24, uses_libraries=ALL, library_path=/data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/lib/arm64:/data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.itantra.speechengine.test
+09-25 14:50:18.264 D/nativeloader(18749): Extending system_exposed_libraries: libbinauralrenderer_wrapper.qti.so:libhoaeffects.qti.so:libsuperNight.oplus.so:libAPSClient-cmd-jni-extension.oplus.so:libsatellite_audio_jni.oplus.so:libortc_so.oplus.so:libsoundtouch.oplus.so:libsoundtouch_jni.oplus.so:libOplusStringJNI-extension.oplus.so:libsatellite_ostx_jni.oplus.so:libapssuspend-jni.oplus.so:libupdateprof.qti.so:libthermalclient.qti.so:libqape.qti.so:libqesdk_ndk_platform.qti.so:liblistenjni.qti.so
+09-25 14:50:18.265 D/ApplicationLoaders(18749): Returning zygote-cached class loader: /system/framework/org.apache.http.legacy.jar
+09-25 14:50:18.265 D/ApplicationLoaders(18749): Returning zygote-cached class loader: /system/framework/android.test.base.jar
+09-25 14:50:18.270 D/nativeloader(18749): Configuring clns-10 for other apk /system/framework/android.test.runner.jar. target_sdk_version=24, uses_libraries=ALL, library_path=/data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/lib/arm64:/data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.itantra.speechengine.test
+09-25 14:50:18.270 D/nativeloader(18749): Extending system_exposed_libraries: libbinauralrenderer_wrapper.qti.so:libhoaeffects.qti.so:libsuperNight.oplus.so:libAPSClient-cmd-jni-extension.oplus.so:libsatellite_audio_jni.oplus.so:libortc_so.oplus.so:libsoundtouch.oplus.so:libsoundtouch_jni.oplus.so:libOplusStringJNI-extension.oplus.so:libsatellite_ostx_jni.oplus.so:libapssuspend-jni.oplus.so:libupdateprof.qti.so:libthermalclient.qti.so:libqape.qti.so:libqesdk_ndk_platform.qti.so:liblistenjni.qti.so
+09-25 14:50:18.342 D/nativeloader(18749): Configuring clns-11 for other apk /data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/base.apk. target_sdk_version=24, uses_libraries=, library_path=/data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/lib/arm64:/data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.itantra.speechengine.test
+09-25 14:50:18.342 D/nativeloader(18749): Extending system_exposed_libraries: libbinauralrenderer_wrapper.qti.so:libhoaeffects.qti.so:libsuperNight.oplus.so:libAPSClient-cmd-jni-extension.oplus.so:libsatellite_audio_jni.oplus.so:libortc_so.oplus.so:libsoundtouch.oplus.so:libsoundtouch_jni.oplus.so:libOplusStringJNI-extension.oplus.so:libsatellite_ostx_jni.oplus.so:libapssuspend-jni.oplus.so:libupdateprof.qti.so:libthermalclient.qti.so:libqape.qti.so:libqesdk_ndk_platform.qti.so:liblistenjni.qti.so
+09-25 14:50:18.348 I/eechengine.test(18749): AssetManager2(0x7ebeea0728) locale list changing from [] to [en-GB]
+09-25 14:50:18.361 V/GraphicsEnvironment(18749): Currently set values for:
+09-25 14:50:18.361 V/GraphicsEnvironment(18749):   angle_gl_driver_selection_pkgs=[]
+09-25 14:50:18.361 V/GraphicsEnvironment(18749):   angle_gl_driver_selection_values=[]
+09-25 14:50:18.361 V/GraphicsEnvironment(18749): com.itantra.speechengine.test is not listed in per-application setting
+09-25 14:50:18.361 V/GraphicsEnvironment(18749): ANGLE allowlist from config: 
+09-25 14:50:18.361 V/GraphicsEnvironment(18749): com.itantra.speechengine.test is not listed in ANGLE allowlist or settings, returning default
+09-25 14:50:18.361 V/GraphicsEnvironment(18749): Updatable production driver is not supported on the device.
+09-25 14:50:18.370 D/ResourcesManagerExtImpl(18749): applyConfigurationToAppResourcesLocked app.getDisplayId() return callback.displayId:-1
+09-25 14:50:18.371 I/AndroidJUnitRunner(18749): newApplication android.app.Application
+09-25 14:50:18.373 I/AndroidJUnitRunner(18749): onCreate Bundle[mParcelledData.dataSize=248]
+09-25 14:50:18.374 D/AndroidJUnitRunner(18749): Use the raw file system for managing file I/O.
+09-25 14:50:18.395 V/TestEventClient(18749): No service name argument was given (testDiscoveryService, testRunEventService or orchestratorService)
+09-25 14:50:18.396 D/AndroidJUnitRunner(18749): onStart is called.
+09-25 14:50:18.440 I/TestRunner(18749): run started: 1 tests
+09-25 14:50:18.442 I/TestRunner(18749): started: fp32_loadsAndRunsSyntheticTensorOnDevice(com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest)
+09-25 14:50:18.479 W/libc    (18749): Access denied finding property "ro.hardware.chipname"
+09-25 14:50:18.485 D/nativeloader(18749): Load /data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/base.apk!/lib/arm64-v8a/libonnxruntime4j_jni.so using class loader ns clns-11 (caller=/data/app/~~lnln6dRuyciweShnGXNK8g==/com.itantra.speechengine.test-31HI9JKVanSEOA9SUPc87A==/base.apk): ok
+09-25 14:50:25.805 I/System.out(18749): REAL ANDROID MEASUREMENT [FP32] file=indicconformer_hi.onnx size=470.2MB loadTime=3747.9ms inferenceRunsMs=[598.623854, 502.594375, 552.985313, 645.872917, 545.560625] meanMs=569.1 ramAfterLoad=totalPss=1011427KB (nativePss=970409KB, dalvikPss=299KB) ramAfterInfer=totalPss=1012376KB (nativePss=924421KB, dalvikPss=831KB)
+09-25 14:50:25.829 I/TestRunner(18749): finished: fp32_loadsAndRunsSyntheticTensorOnDevice(com.itantra.speechengine.stt.IndicConformerOnnxDeviceValidationTest)
+09-25 14:50:25.837 I/TestRunner(18749): run finished: 1 tests, 0 failed, 0 ignored
