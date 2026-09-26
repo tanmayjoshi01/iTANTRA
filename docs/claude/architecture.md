@@ -42,7 +42,7 @@ This mirrors the diagram already in `README.md` (System Architecture section); i
 | Component | Purpose | Status |
 |---|---|---|
 | `speech-engine` | On-device audio capture, VAD, speech segmentation, offline STT; future TTS integration point | Implemented: audio/VAD/segmentation complete; STT implemented for Hindi only (see Phase 2 section below) |
-| `app` | Android application module: UI, lifecycle, permission requests, wiring speech-engine to transport | Stage 1 foundation implemented (Paras): Compose `MainActivity` placeholder screen; depends on `:speech-engine` but does not call it yet — see `current-state.md` |
+| `app` | Android application module: UI, lifecycle, permission requests, wiring speech-engine to transport | Implemented (Paras): Compose `MainActivity`, runtime `RECORD_AUDIO` request, `SpeechController` wiring `AudioRecorder` → `SpeechSegmenter` → `SpeechRecognizer` off the capture thread. Real model inference from the app not yet validated; no transport — see `current-state.md` |
 | `transport` | Wi-Fi Direct / Bluetooth device-to-device link abstraction | Planned / Proposed (Paras) |
 | `protocol` | Message format/serialization exchanged over transport | Planned / Proposed (Paras) |
 | `metrics` | Benchmarking/measurement harness (latency, CPU, RAM, WER, network) | Planned / Proposed (shared) |
