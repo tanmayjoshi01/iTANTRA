@@ -241,7 +241,7 @@ cd iTANTRA
 ./gradlew :speech-engine:testDebugUnitTest   # requires the Android SDK described above
 ```
 
-`app/` (the Android application module) exists as a minimal Stage 1 foundation: it launches and shows a placeholder Compose screen, but has no speech, transport, or TTS functionality yet. With a device connected over ADB, `./gradlew :app:installDebug` installs it.
+`app/` (the Android application module) has a minimal Compose screen that requests the microphone permission and wires `speech-engine`'s audio capture, segmentation, and recognizer together. Real on-device recognition from the app has not been validated yet (it needs the separately provisioned model file), and there is no transport or TTS functionality. With a device connected over ADB, `./gradlew :app:installDebug` installs it.
 
 ## Repository Structure
 
@@ -253,8 +253,8 @@ iTANTRA/
 ├── build.gradle.kts
 ├── gradle.properties
 ├── gradlew, gradlew.bat, gradle/wrapper/
-├── app/                  # Android application module (Kotlin, Jetpack Compose) — Stage 1 foundation only
-│   └── src/{main,androidTest}/...
+├── app/                  # Android application module (Kotlin, Jetpack Compose) — speech integration wiring, no transport yet
+│   └── src/{main,test,androidTest}/...
 ├── speech-engine/        # Android library module: audio capture, VAD, segmentation (Phase 1)
 │   └── src/{main,test,androidTest}/...
 └── README.md
