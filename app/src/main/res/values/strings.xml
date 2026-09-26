@@ -1,5 +1,15 @@
 <resources>
     <string name="app_name">iTANTRA</string>
-    <string name="foundation_status">Application foundation</string>
-    <string name="speech_engine_status">Speech-engine integration: pending</string>
+    <string name="status_label">State: %1$s</string>
+    <string name="status_idle">Idle</string>
+    <string name="status_listening">Listening</string>
+    <string name="status_recognizing">Recognizing</string>
+    <string name="status_listening_and_recognizing">Listening (recognizing previous utterance)</string>
+    <string name="start">Start</string>
+    <string name="stop">Stop</string>
+    <string name="last_text_label">Last recognized text: %1$s</string>
+    <string name="none">(none)</string>
+    <string name="error_permission_denied">Microphone permission denied. Speech input needs it; it can be granted again from system settings.</string>
+    <string name="error_audio_capture">Audio capture failed: %1$s</string>
+    <string name="error_recognition">Recognition failed: %1$s</string>
 </resources>
