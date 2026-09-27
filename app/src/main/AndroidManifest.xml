@@ -2,11 +2,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-         No permissions are declared here. RECORD_AUDIO is declared by
-         speech-engine's manifest and merged into this app automatically.
-         Requesting it at runtime is this module's job (see architecture.md)
-         and will be added when the app starts microphone capture.
+         RECORD_AUDIO is declared by speech-engine's manifest and merged into
+         this app automatically; MainActivity requests it at runtime.
+         INTERNET is required for any socket, including the local-network TCP
+         text link between the two phones (no internet access is used).
     -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Bluetooth Classic RFCOMM text link with an already-paired phone.
+         Android 12+: BLUETOOTH_CONNECT (runtime); Android 11 and below: BLUETOOTH.
+         No discovery/scan permission: only the paired-device list is used. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
 
     <application
         android:allowBackup="false"
