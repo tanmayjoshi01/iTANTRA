@@ -28,6 +28,18 @@ class EnergyZcrVoiceActivityDetector(
     private var consecutiveActiveFrames = 0
     private var consecutiveInactiveFrames = 0
 
+    /** RMS energy of the most recently processed frame; read-only, for diagnostics. */
+    var lastFrameEnergy: Double = 0.0
+        private set
+
+    /** Zero-crossing rate of the most recently processed frame; read-only, for diagnostics. */
+    var lastFrameZcr: Double = 0.0
+        private set
+
+    /** Whether the most recently processed frame passed the energy and ZCR checks. */
+    var lastFrameIsCandidate: Boolean = false
+        private set
+
     override fun processFrame(frame: AudioFrame): VadState {
         val candidate = isSpeechCandidate(frame)
 
@@ -69,12 +81,19 @@ class EnergyZcrVoiceActivityDetector(
 
     private fun isSpeechCandidate(frame: AudioFrame): Boolean {
         val samples = frame.samples
-        if (samples.isEmpty()) return false
+        if (samples.isEmpty()) {
+            lastFrameEnergy = 0.0
+            lastFrameZcr = 0.0
+            lastFrameIsCandidate = false
+            return false
+        }
 
         val energy = rmsEnergy(samples)
         val zcr = zeroCrossingRate(samples)
-
-        return energy >= config.energyThreshold && zcr in config.zeroCrossingRateRange
+        lastFrameEnergy = energy
+        lastFrameZcr = zcr
+        lastFrameIsCandidate = energy >= config.energyThreshold && zcr in config.zeroCrossingRateRange
+        return lastFrameIsCandidate
     }
 
     private fun rmsEnergy(samples: ShortArray): Double {

@@ -14,13 +14,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -58,6 +64,7 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                     onStop = controller::stop,
+                    onClearTranscript = controller::clearTranscript,
                 )
             }
         }
@@ -76,7 +83,17 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun SpeechScreen(state: SpeechState, onStart: () -> Unit, onStop: () -> Unit) {
+private fun SpeechScreen(
+    state: SpeechState,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    onClearTranscript: () -> Unit,
+) {
+    val transcriptListState = rememberLazyListState()
+    // Keep the newest utterance in view as entries are appended.
+    LaunchedEffect(state.transcript.size) {
+        if (state.transcript.isNotEmpty()) transcriptListState.animateScrollToItem(state.transcript.lastIndex)
+    }
     // Scaffold's content padding keeps text clear of system bars, which
     // Android 15+ draws over app content when targetSdk >= 35.
     Scaffold { innerPadding ->
@@ -97,9 +114,52 @@ private fun SpeechScreen(state: SpeechState, onStart: () -> Unit, onStop: () -> 
                     Text(stringResource(R.string.stop))
                 }
             }
-            Text(stringResource(R.string.last_text_label, state.lastText ?: stringResource(R.string.none)))
+            if (state.isLoadingModel) {
+                Text(stringResource(R.string.loading_model))
+            }
             state.error?.let { error ->
                 Text(errorText(error), color = MaterialTheme.colorScheme.error)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    stringResource(R.string.transcript_label, state.transcript.size),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                // Only when idle, so an in-flight result cannot land in the new session.
+                OutlinedButton(
+                    onClick = onClearTranscript,
+                    enabled = state.transcript.isNotEmpty() && !state.isListening && !state.isRecognizing,
+                ) {
+                    Text(stringResource(R.string.clear_transcript))
+                }
+            }
+            if (state.transcript.isEmpty()) {
+                Text(stringResource(R.string.transcript_empty))
+            }
+            LazyColumn(
+                state = transcriptListState,
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                itemsIndexed(state.transcript) { index, entry ->
+                    Column {
+                        Text(
+                            stringResource(
+                                R.string.transcript_entry,
+                                index + 1,
+                                entry.result.text.ifBlank { stringResource(R.string.empty_result) },
+                            ),
+                        )
+                        Text(
+                            stringResource(
+                                R.string.transcript_entry_timing,
+                                entry.result.inferenceTimeMs,
+                                entry.audioDurationMs,
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
             }
         }
     }

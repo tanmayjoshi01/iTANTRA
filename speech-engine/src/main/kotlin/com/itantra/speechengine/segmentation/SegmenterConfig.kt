@@ -46,6 +46,20 @@ data class SegmenterConfig(
     val minSegmentDurationMs: Long = DEFAULT_MIN_SEGMENT_DURATION_MS,
 
     /**
+     * Segments in which the VAD reported speech
+     * ([com.itantra.speechengine.vad.VadState.SPEECH_START] or
+     * [com.itantra.speechengine.vad.VadState.SPEECH]) for less than this are
+     * discarded. Unlike [minSegmentDurationMs], this ignores pre-roll and
+     * trailing silence. That matters for a transient that just reaches the
+     * VAD's start confirmation and drops straight back to silence: it yields
+     * a single SPEECH_START frame, while its buffered pre-roll and 600 ms
+     * silence tail easily exceed [minSegmentDurationMs]. Speech that reaches
+     * SPEECH always has at least the VAD's hangover of speech frames. 0
+     * (the default) disables the check.
+     */
+    val minSpeechDurationMs: Long = 0L,
+
+    /**
      * Number of frames immediately preceding a confirmed speech start to
      * prepend to the segment. [com.itantra.speechengine.vad.VadConfig]'s
      * own speechStartFrameCount means a real VAD implementation only
@@ -62,6 +76,7 @@ data class SegmenterConfig(
             "maxSegmentDurationMs ($maxSegmentDurationMs) must be greater than silenceDurationMs ($silenceDurationMs)"
         }
         require(minSegmentDurationMs >= 0) { "minSegmentDurationMs must not be negative, was $minSegmentDurationMs" }
+        require(minSpeechDurationMs >= 0) { "minSpeechDurationMs must not be negative, was $minSpeechDurationMs" }
         require(preRollFrameCount >= 0) { "preRollFrameCount must not be negative, was $preRollFrameCount" }
     }
 

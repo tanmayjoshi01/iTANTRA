@@ -195,4 +195,74 @@ class SpeechSegmenterTest {
         val expectedFrameCount = preRollCount + collectedSpeechFrames + silentFrames.size
         assertEquals(expectedFrameCount * audioConfig.samplesPerFrame, segment!!.samples.size)
     }
+
+    @Test
+    fun `flush returns the in-progress segment without waiting for silence`() {
+        val segmenter = newSegmenter()
+        val speechFrames = speech(6)
+        assertTrue(speechFrames.map { segmenter.processFrame(it) }.all { it == null })
+
+        val segment = segmenter.flush()
+        assertNotNull(segment)
+        // The VAD confirms speech on its speechStartFrameCount-th frame; frames before that are not collected (no pre-roll here).
+        val collectedFrames = speechFrames.size - (vadConfig.speechStartFrameCount - 1)
+        assertEquals(collectedFrames * audioConfig.samplesPerFrame, segment!!.samples.size)
+    }
+
+    @Test
+    fun `flush with no segment in progress returns null`() {
+        val segmenter = newSegmenter()
+        silence(5).forEach { segmenter.processFrame(it) }
+        assertNull(segmenter.flush())
+    }
+
+    @Test
+    fun `flush discards a segment shorter than the minimum duration`() {
+        val config = defaultSegmenterConfig.copy(minSegmentDurationMs = 300)
+        val segmenter = newSegmenter(config)
+        speech(3).forEach { segmenter.processFrame(it) } // 2 collected frames = 40 ms
+        assertNull(segmenter.flush())
+    }
+
+    @Test
+    fun `segmenter is reset after flush and handles a new utterance normally`() {
+        val segmenter = newSegmenter()
+        speech(6).forEach { segmenter.processFrame(it) }
+        assertNotNull(segmenter.flush())
+        assertNull("nothing left to flush", segmenter.flush())
+
+        speech(6).forEach { segmenter.processFrame(it) }
+        val results = silence(silenceFramesToFinalize()).map { segmenter.processFrame(it) }
+        assertNotNull(results.last())
+    }
+
+    @Test
+    fun `transient that only reaches speech start is kept by default`() {
+        // speechStartFrameCount = 2: two candidate frames confirm SPEECH_START, the next silent frame returns to SILENCE.
+        val segmenter = newSegmenter()
+        val results = (speech(2) + silence(silenceFramesToFinalize() + 5)).map { segmenter.processFrame(it) }
+        assertNotNull("default minSpeechDurationMs = 0 keeps the existing behavior", results.filterNotNull().singleOrNull())
+    }
+
+    @Test
+    fun `minSpeechDuration discards a segment whose only speech frame is the start confirmation`() {
+        val segmenter = newSegmenter(defaultSegmenterConfig.copy(minSpeechDurationMs = 40))
+        val results = (speech(2) + silence(silenceFramesToFinalize() + 5)).map { segmenter.processFrame(it) }
+        assertTrue(results.all { it == null })
+    }
+
+    @Test
+    fun `minSpeechDuration keeps sustained speech and ignores pre-roll and trailing silence`() {
+        val segmenter = newSegmenter(defaultSegmenterConfig.copy(minSpeechDurationMs = 40, preRollFrameCount = 3))
+        silence(5).forEach { segmenter.processFrame(it) }
+        val results = (speech(6) + silence(silenceFramesToFinalize())).map { segmenter.processFrame(it) }
+        assertNotNull(results.last())
+    }
+
+    @Test
+    fun `flush also applies minSpeechDuration`() {
+        val segmenter = newSegmenter(defaultSegmenterConfig.copy(minSpeechDurationMs = 200))
+        speech(3).forEach { segmenter.processFrame(it) } // SPEECH_START + 1 SPEECH frame = 40 ms of speech
+        assertNull(segmenter.flush())
+    }
 }

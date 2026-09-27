@@ -31,6 +31,7 @@ class SpeechSegmenter(
     private var collecting = false
     private var silenceAccumMs = 0L
     private var collectedDurationMs = 0L
+    private var speechDurationMs = 0L
 
     /**
      * Processes one frame. Returns a finalized [SpeechSegment] if this frame
@@ -55,6 +56,7 @@ class SpeechSegmenter(
 
         if (isSpeechLike) {
             silenceAccumMs = 0L
+            speechDurationMs += frame.durationMs
         } else {
             silenceAccumMs += frame.durationMs
         }
@@ -63,6 +65,22 @@ class SpeechSegmenter(
             collectedDurationMs >= config.maxSegmentDurationMs
 
         return if (shouldFinalize) finalizeSegment() else null
+    }
+
+    /**
+     * Ends the input stream: finalizes and returns the segment in progress,
+     * if any, without waiting for [SegmenterConfig.silenceDurationMs] of
+     * silence. Use when the caller stops capture explicitly (e.g. a Stop
+     * button) and wants the utterance spoken so far rather than losing it.
+     * Returns `null` if no segment was being collected, or if it is shorter
+     * than [SegmenterConfig.minSegmentDurationMs] (discarded, as in
+     * [processFrame]). Afterwards the segmenter and its VAD are reset, as by
+     * [reset], ready for a new stream.
+     */
+    fun flush(): SpeechSegment? {
+        val segment = if (collecting && bufferedFrames.isNotEmpty()) finalizeSegment() else null
+        reset()
+        return segment
     }
 
     /**
@@ -77,6 +95,7 @@ class SpeechSegmenter(
         collecting = false
         silenceAccumMs = 0L
         collectedDurationMs = 0L
+        speechDurationMs = 0L
         vad.reset()
     }
 
@@ -95,11 +114,13 @@ class SpeechSegmenter(
         preRollBuffer.clear()
         collectedDurationMs = bufferedFrames.sumOf { it.durationMs }
         silenceAccumMs = 0L
+        speechDurationMs = 0L
     }
 
     private fun finalizeSegment(): SpeechSegment? {
         val framesToEmit = bufferedFrames.toList()
         val finalDurationMs = collectedDurationMs
+        val finalSpeechDurationMs = speechDurationMs
         val startTimestampMs = framesToEmit.first().timestampMs
         val endTimestampMs = framesToEmit.last().timestampMs
         val audioConfig = framesToEmit.first().config
@@ -108,8 +129,10 @@ class SpeechSegmenter(
         bufferedFrames.clear()
         silenceAccumMs = 0L
         collectedDurationMs = 0L
+        speechDurationMs = 0L
 
         if (finalDurationMs < config.minSegmentDurationMs) return null
+        if (finalSpeechDurationMs < config.minSpeechDurationMs) return null
 
         return SpeechSegment(
             samples = mergeSamples(framesToEmit),

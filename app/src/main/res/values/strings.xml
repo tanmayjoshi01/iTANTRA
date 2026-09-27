@@ -7,8 +7,13 @@
     <string name="status_listening_and_recognizing">Listening (recognizing previous utterance)</string>
     <string name="start">Start</string>
     <string name="stop">Stop</string>
-    <string name="last_text_label">Last recognized text: %1$s</string>
-    <string name="none">(none)</string>
+    <string name="transcript_label">Session transcript (%1$d)</string>
+    <string name="transcript_empty">No utterances recognized yet.</string>
+    <string name="clear_transcript">Clear transcript</string>
+    <string name="transcript_entry">%1$d. %2$s</string>
+    <string name="empty_result">(empty result)</string>
+    <string name="loading_model">Loading speech model…</string>
+    <string name="transcript_entry_timing">Recognition %1$d ms, audio %2$d ms</string>
     <string name="error_permission_denied">Microphone permission denied. Speech input needs it; it can be granted again from system settings.</string>
     <string name="error_audio_capture">Audio capture failed: %1$s</string>
     <string name="error_recognition">Recognition failed: %1$s</string>

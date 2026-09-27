@@ -79,7 +79,146 @@ Tested (Level 2): `SpeechControllerTest`, 18 JVM tests, PASS (debug and release 
 
 Device validated (Level 4, Samsung SM-T225, Android 14, 2026-09-25): `./gradlew :app:connectedDebugAndroidTest` passed 3 of 3 (`launch_rendersSpeechScreenInIdleState`, `startThenStop_togglesListeningState` with RECORD_AUDIO pre-granted, `installedApp_declaresSpeechEngineMicrophonePermission`). Manual adb-driven check on a fresh install: Start shows the system permission dialog; "Don't allow" shows the denial error with no crash; granting moves the app to Listening (`AudioRecorder` logged `Recording started: sampleRate=16000Hz`); Stop returns to Idle (`Recording stopped`).
 
-**Not validated:** real model inference from the app. No model file has been on the tablet, and no utterance has been recognized from the app. The no-model path on device (speak, then expect a "model file not found" error) has also not been exercised, because it needs a person speaking. Memory feasibility of the FP32 model on the SM-T225 (about 2.7 GB total RAM) is unknown.
+**Superseded 2026-09-26:** real model inference from the app has since run on the SM-T225; see the next section.
+
+### Application module `app` — Start/Stop utterance flow with the real recognizer (added 2026-09-26)
+
+Implemented:
+
+- **Stop recognizes what was said.** `SpeechSegmenter.flush()` was added to `speech-engine`. It is a small, backward-compatible addition, with 4 new JVM tests in `SpeechSegmenterTest`. `SpeechController.stop()` now flushes the utterance in progress and recognizes it instead of discarding it. Capture errors, recognition failures and teardown still discard. The capture thread (`processFrame`) and the caller of `stop()` (`flush`) are serialized on a per-session lock.
+- **Model preload.** Start creates the recognizer (loads the model) on the recognition worker immediately. `SpeechState.isLoadingModel` drives a "Loading speech model…" line, and a missing or unloadable model is reported at Start rather than after the first utterance. Utterances finished during the load queue behind it. A second Start reuses the loaded recognizer.
+- **Result and timing.** `SpeechState.lastText` became `lastResult` (the full `SpeechRecognitionResult`). The UI shows the text plus "Recognition took X ms for about Y ms of audio". `SpeechViewModel` logs `Model loaded: … loadTimeMs=` and one `Recognized: inferenceTimeMs=… audioSpanMs=… text=` line per result (tag `SpeechViewModel`).
+
+Tested:
+
+- Level 2: `SpeechControllerTest` 24/24 and `speech-engine` 25/25 (including `SpeechSegmenterTest` 15/15), both debug and release unit-test variants.
+- A deliberate mutation (Stop not flushing) made exactly the two Stop tests fail.
+- Level 4 instrumented: `./gradlew :app:connectedDebugAndroidTest` 3/3 on the SM-T225. This includes `start_withoutModelFile_reportsModelNotFound_andReturnsToIdle`, which drives the real `IndicConformerRecognizer` into `ModelNotFound`.
+
+Device validated (Level 4, Samsung SM-T225, Android 14, 2026-09-26, FP32 `indicconformer_hi.onnx` sha256 `fd2a2d26…`, pushed to the app's external files directory):
+
+- **Model load:** `loadTimeMs=12859`. App TOTAL PSS peaked at about 1.00 GB (1,004,133 KB). No low-memory-killer kills, no crash. `MemAvailable` on the tablet was 419 MB afterwards, with the app still holding the model.
+- **Live speech:** a person speaking Hindi into the tablet produced visible text through microphone → `AudioRecorder` → `SpeechSegmenter` → `IndicConformerRecognizer` → UI. Recognized utterances, as logged: "पारस", "हेलो", "हेलो कौन हो तोू", "वायु", "द वपस", "कैम शो मजे में". Each utterance was 1.1–1.9 s of audio and took 955–1,446 ms to recognize. The final result arrived 1.6 s after Stop was tapped, which is consistent with the flush-on-Stop path.
+- **Accuracy was not assessed.** There is no reference transcript for the live speech.
+- **Playback run:** in the same session, playing `known_hindi_clip.wav` from the laptop speaker produced no speech segment at all. Nothing reached the recognizer, most likely because the mic level was below the VAD threshold (not verified). No transcription of the known clip through the microphone has been obtained.
+
+Known limitations:
+
+- The UI shows only the latest utterance. Earlier ones in a session are visible only in logcat. (Superseded by the session transcript, below.)
+- The model stays loaded (about 1 GB) for the lifetime of the ViewModel, even when idle.
+- `EnergyZcrVoiceActivityDetector` thresholds are untuned (Decision 001). Quiet input may never be detected as speech, as the playback run showed.
+- Model delivery is still development-only (`adb push`). The production mechanism is undecided.
+
+### Application module `app` — session transcript (added 2026-09-26)
+
+Implemented:
+
+- **One state system.** `SpeechState.lastResult` was replaced by `transcript: List<TranscriptEntry>`, oldest first. A `TranscriptEntry` holds the existing `SpeechRecognitionResult` plus `audioDurationMs`, computed from the segment's sample count.
+- **Appending.** Every successful recognition appends an entry. Nothing is overwritten. Recognition and capture errors leave earlier entries intact.
+- **Session semantics.** The transcript lives as long as `SpeechViewModel` and is kept across Start/Stop cycles. `SpeechController.clearTranscript()`, behind a "Clear transcript" button, starts a new session. The button is enabled only when idle (not listening, nothing recognizing), so an in-flight result cannot land in the new session.
+- **UI.** A numbered, scrollable list (`LazyColumn`) that scrolls to the newest entry. Each entry shows its text and "Recognition X ms, audio Y ms". The list is under the state line, Start/Stop, the loading line and the error line.
+- **Logging.** `SpeechViewModel` logs each new entry once: `Transcript #n: audioDurationMs=… inferenceTimeMs=… text="…"`. `app/scripts/score_live_stt.py` reads this.
+- **Experiment tooling.** Procedure: `live-stt-accuracy-experiment.md`. Fixed references: `app/scripts/live_stt_sentences_hi.tsv` (H01–H15). WER/CER scorer: `app/scripts/score_live_stt.py` (jiwer definitions; NFC plus whitespace normalization only). The scorer was checked against a hand-made log with known answers; that check is tooling verification, not device data.
+
+Tested:
+
+- Level 2: `SpeechControllerTest` 30/30 (debug and release), including one entry per utterance, second appends without overwriting, failure keeps earlier entries, transcript kept across Start/Stop, clear starts a new session, Stop → flush → entry, and duration from sample count. `speech-engine` 25/25.
+- A mutation that overwrote instead of appending failed exactly the two retention tests.
+- Level 4 instrumented on the SM-T225: `./gradlew :app:connectedDebugAndroidTest`, 2 passed and 1 skipped. The model-not-found test skipped itself as designed, because a previously pushed model was still present.
+
+Device observations (SM-T225, FP32, 2026-09-26):
+
+- `loadTimeMs=9856`.
+- One Start/Stop attempt produced three appended entries (`Transcript #1`–`#3`: "है हवायु", "है हवाईयाँ", "मेरा नाम पारस है"; 1.28–1.94 s of audio each, inference 1,139–2,090 ms). No crash, no low-memory kills.
+- The transcript was later cleared on the device. I did not observe which control was tapped.
+
+**Accuracy: not measured.** The controlled experiment (H01–H15) was not completed. The device log contains only one attempt, so no WER/CER exists for the live microphone path.
+
+**Second baseline attempt, 2026-09-26 14:27–14:34 IST: invalid, not scored.**
+
+- **Setup:** SM-T225, Android 14, FP32 `indicconformer_hi.onnx` (sha256 `fd2a2d26…`, verified on the device). `connectedDebugAndroidTest` ran first: 2 passed, 1 skipped by design.
+- **Why it's invalid:** the device log has 3 `Recording started` attempts, not 15, and 9 transcript entries whose numbering restarted twice (the transcript was cleared mid-run). No entry sequence corresponds to H01–H15, so no WER/CER was computed. The experiment procedure now includes a validity check for exactly this case.
+- **Facts from the log:**
+  - `loadTimeMs=11852`.
+  - Entries were 0.72–2.18 s of audio, with inference 689–2,280 ms.
+  - Five entries were exactly 720 ms of audio (inference 714–717 ms when recognized as "वाद"). "वाद" (720 ms) also appeared as a standalone entry in an earlier session. The cause is not established.
+  - No crash, no low-memory-killer kill, no ANR.
+  - adb lost the device once over USB after the run; the device did not reboot.
+
+**Third baseline attempt, 2026-09-26 14:48–15:16 IST: invalid, not scored.**
+
+- **How it was run:** Start/Stop were driven over adb, and the speaker only spoke on each prompt. Setup: SM-T225, FP32 `fd2a2d26…` verified on the device, fresh process, transcript 0 at start.
+- **Why it's invalid:**
+  - Only 2 of 15 attempts happened. H01 ran 14:48:41–14:51:18. H02 ran 14:51:28–15:14:38, 23 minutes of listening.
+  - Samsung's MTP "Allow access to tablet data?" dialog (USB re-enumeration, 15:16) interrupted the run.
+  - The transcript later showed 0 in the same process.
+  - Neither reference sentence appears in the output.
+- **Observation (not a conclusion): continuous false segmentation.** Nobody was speaking in several stretches, yet the unmodified EnergyZcr VAD (default thresholds) produced:
+  - 5 entries in the first ~25 s, and 46 during the H01 attempt;
+  - 248 entries overall, averaging one per 5–7 s;
+  - texts overwhelmingly "वाद" (76 in the H02 attempt), "है" (71), "द" (18), empty (12), "ब है" (11). Many were 720 ms of audio.
+
+  A room sound level above the VAD's energy threshold would explain this, but it is not verified: there is no noise measurement.
+- **Facts from the log:** `loadTimeMs=10730`. No crash, no low-memory-killer kill, no ANR.
+- **Raw log:** kept outside the repository (session scratchpad, `run-valid-attempt3.log`).
+
+### False speech detections: diagnosis and fix (2026-09-26, SM-T225)
+
+**Root cause of the 720 ms entries (from the code, confirmed on the device):**
+
+- With speech-engine defaults, two consecutive frames above RMS 0.02 (40 ms) make `EnergyZcrVoiceActivityDetector` report `SPEECH_START`.
+- If the next frame is below threshold, the VAD goes straight back to `SILENCE`. The `SPEECH_START` branch has no hangover.
+- `SpeechSegmenter` has already opened a segment: 5 pre-roll frames plus the confirming frame. It then closes it after 600 ms of silence (30 frames). That is 36 frames = 720 ms of near-silence.
+- The segment passes `minSegmentDurationMs` (250 ms) because that minimum counts pre-roll and trailing silence, not speech. The recognizer reads it as "वाद" or "है".
+
+**Measured on the device** (VadDiag logging; silence, nobody speaking):
+
+- Unchanged VAD, 61 s: 9 transcript entries, 11 `SPEECH_START`, 1 `SPEECH_END`.
+- 6 of the 9 entries were exactly 720 ms "वाद".
+- Background RMS: per-second median 0.0046 (−47 dBFS). The per-second maximum had a median of 0.0197, the same level as the 0.02 threshold.
+- 63 of about 3,050 frames were above threshold, in runs of at most 5 frames (mostly 1–2).
+- There is no consistent extra background noise while the model loads.
+
+**Changes:**
+
+- App-only settings in `SpeechTuning`; speech-engine defaults are unchanged:
+  - `speechStartFrameCount` 2 → 8. That is 160 ms, above every silent run observed.
+  - `preRollFrameCount` 5 → 10, so onsets are kept.
+  - `minSpeechDurationMs` = 40.
+- The energy threshold, ZCR range, hangover and silence timeout are unchanged.
+- speech-engine additions, both additive with no default behavior change (for Tanmay to review):
+  - `SegmenterConfig.minSpeechDurationMs` (default 0) discards segments with less than that much `SPEECH_START`/`SPEECH` audio.
+  - Read-only `lastFrameEnergy`/`lastFrameZcr`/`lastFrameIsCandidate` on the VAD.
+- App `VadDiagnostics`: per-second energy/ZCR percentiles, above-threshold counts and runs, and start/end events. Enable with `adb shell setprop log.tag.VadDiag DEBUG`. Off by default.
+
+**Tests:**
+
+- app 40/40: `SpeechControllerTest` 30 plus `SpeechTuningSegmentationTest` 10. The latter uses the real VAD and segmenter with measured levels. It reproduces the 720 ms segment under the defaults, and covers silence, observed transients, the 7/8/9-frame boundary, quiet speech, one and two utterances, segment end, and flush.
+- speech-engine 29/29, including 4 new `minSpeechDurationMs` tests.
+- Reverting the start count to 2 fails exactly the two false-trigger tests.
+
+**Silence check on the device:**
+
+- With the start-count and pre-roll change only (67 s): **1** entry, down from 9. It was an 8-frame transient that again reached only `SPEECH_START`, which `minSpeechDurationMs` was then added for. The run did **not** pass (the requirement is 0).
+- With both changes: **not yet measured.** The tablet's USB connection failed (`usb 3-2: device not accepting address …, error -71`, repeated re-enumeration) before the check could run.
+- **Update, same day 19:38–19:41 IST.** Both changes, installed APK verified identical to the build (`c55c111d…`), `VadDiag` on. In the requested silence window (Start to 60 s after the model was ready, 76 s including the 12.4 s load):
+  - **0 transcript entries, 0 `SPEECH_START`**;
+  - 98/3,800 frames above threshold, longest run 4;
+  - background RMS median 0.0050, per-second peak median 0.0218.
+
+  The run was **not clean procedurally**: USB re-enumerated mid-run (device 079 → 084, port 3-2), adb dropped, and Stop was tapped late (19:41:10). After the silence window there was sustained sound of unknown origin (runs of 16–27 frames), with one proper `SPEECH_START`→`SPEECH_END` and one 4.14 s entry ("ह"). Because its origin is unknown, it is not counted either way.
+- **Speech-path smoke test, 20:28–20:49 IST.**
+  - **Setup.** The USB link was re-plugged at 19:56:44 (still port 3-2). GNOME's gvfs MTP/gphoto2 volume monitors were stopped for the session, after an adb drop that happened with the USB device still attached. After that: 18/18 adb checks over 3 min, and 0 re-enumerations or `error -71` for the rest of the session. The APK was verified as `c55c111d…` (start 8, pre-roll 10, `minSpeechDurationMs` 40), with `VadDiag` on.
+  - **Sentence under test:** "आज बारिश हो रही है", spoken three times (normal / louder / loud at about 5 cm), Start → speak → Stop each.
+  - **The detector responds to real sustained sound.** Every accepted segment had a proper `SPEECH_START`→`SPEECH_END`, with sustained runs of 8–34 frames. Peak RMS was 0.038–0.166, against silence peaks of about 0.02 and silent runs of 4–5 frames or fewer. There were no 720 ms or start-only false segments.
+  - **Recognition returned text**, e.g. "हाँ", "है", "हेलो", and the multi-word "तुझा नाव काया है" (1.58 s of audio, 1,324 ms inference).
+  - **The test sentence never appeared in A, B or C.** B (reported "louder") had no sustained activity at all: longest run 5, peak 0.059. C (reported "loud at about 5 cm") peaked at RMS 0.038, no louder than other room speech, and one of its two utterances came after the speaker's confirmation. Whether the controlled utterances reached the tablet is **unresolved**.
+  - **Other facts.** Model load 11,994 ms. PSS about 0.99 GB (463 MB of it in swap after about 20 min listening). No crash, low-memory kill or ANR.
+  - The system is **not ready** for H01–H15: the controlled sentence has not been captured and the three-sentence check has not been done.
+  - Raw log: `~/itantra-stt-validation/runs/speech-smoke.log`, outside the repository.
+- **USB:** 72 re-enumerations and 38 `error -71` on port 3-2 in one hour. The same port and continuous device numbering after a requested cable/port change indicate the physical connection was not actually changed. Device validation is blocked on this.
+
+**Speech capture: open issue.** Two sentences spoken while listening, with the unchanged VAD, including one the speaker reported as 10–15 cm from the tablet, never appeared as speech. Neither produced a speech-like window: peak RMS 0.057/0.075, at most 7–8 consecutive above-threshold frames. The earlier laptop-speaker playback also produced no segment. The cause is not established: capture level of `VOICE_RECOGNITION` on this device, mic placement, or the speech not being in the window. The speech sanity check has not been done. The system is **not ready** for the H01–H15 experiment.
 
 ## Validation status
 
