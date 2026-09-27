@@ -32,6 +32,10 @@ class ReceiverTts(context: Context) {
         val speaking: Boolean = false,
         /** Milliseconds from speak() being called (message received) to audio starting. */
         val lastStartLatencyMs: Long? = null,
+        /** Whether the engine has a usable voice for each language (checked once at init). */
+        val voices: Map<Language, Boolean> = emptyMap(),
+        /** Last message that could not be spoken, e.g. "Assamese voice unavailable". */
+        val lastProblem: String? = null,
     )
 
     private val appContext = context.applicationContext
@@ -42,6 +46,7 @@ class ReceiverTts(context: Context) {
     private val requestedAt = HashMap<String, Long>()
     private var focusRequest: AudioFocusRequest? = null
     private var nextId = 0
+    private var currentLanguage = Language.HI
 
     private val tts: TextToSpeech = TextToSpeech(appContext, { status -> onInit(status) }, GOOGLE_TTS)
 
@@ -68,11 +73,30 @@ class ReceiverTts(context: Context) {
                 _state.update { it.copy(status = "TTS ready (Hindi, ${tts.voice?.name ?: "default voice"})", ready = true) }
             }
         }
-        Log.i(TAG, "init status=$status setLanguage=$result -> ${_state.value.status}")
+        // Which of the demo languages this engine can actually speak (does not change the current language).
+        val voices = Language.entries.associateWith {
+            try {
+                tts.isLanguageAvailable(it.locale) >= TextToSpeech.LANG_AVAILABLE
+            } catch (e: Exception) {
+                false
+            }
+        }
+        _state.update { it.copy(voices = voices) }
+        Log.i(TAG, "init status=$status setLanguage=$result -> ${_state.value.status}; voices=$voices")
     }
 
-    fun speak(text: String, alert: Boolean) {
+    fun speak(text: String, alert: Boolean, language: Language = Language.HI) {
         if (!_state.value.ready) return
+        if (_state.value.voices[language] != true) {
+            Log.w(TAG, "${language.displayName} voice unavailable; not speaking: $text")
+            _state.update { it.copy(lastProblem = "${language.displayName} voice unavailable") }
+            return
+        }
+        if (language != currentLanguage) {
+            tts.setLanguage(language.locale)
+            currentLanguage = language
+        }
+        _state.update { it.copy(lastProblem = null) }
         val id = "u${nextId++}"
         requestedAt[id] = SystemClock.elapsedRealtime()
         val params = Bundle()

@@ -42,4 +42,45 @@ class TextLinesTest {
         TextLines.readMessages("एक\n\nदो".byteInputStream(Charsets.UTF_8).bufferedReader(Charsets.UTF_8)) { received += it }
         assertEquals(listOf("एक", "दो"), received) // last line without trailing newline still delivered
     }
+
+    // --- Message type (NORMAL / ALERT) ---
+
+    private fun sendAll(messages: List<TextMessage>): List<TextMessage> =
+        roundTrip(messages.mapNotNull(TextLines::encode)).map(TextLines::decode)
+
+    @Test
+    fun normalHindiMessage_roundTrips() {
+        val m = TextMessage(MessageType.NORMAL, "नमस्ते")
+        assertEquals(listOf(m), sendAll(listOf(m)))
+    }
+
+    @Test
+    fun alertHindiMessage_roundTrips_withSpaces() {
+        val m = TextMessage(MessageType.ALERT, "मेरा नाम पारस है")
+        assertEquals("[ALERT] मेरा नाम पारस है", TextLines.encode(m))
+        assertEquals(listOf(m), sendAll(listOf(m)))
+    }
+
+    @Test
+    fun mixedTypes_keepOrder() {
+        val messages = listOf(
+            TextMessage(MessageType.NORMAL, "नमस्ते"),
+            TextMessage(MessageType.ALERT, "मदद चाहिए"),
+            TextMessage(MessageType.NORMAL, "आप कैसे हैं"),
+            TextMessage(MessageType.ALERT, "आपातकाल"),
+        )
+        assertEquals(messages, sendAll(messages))
+    }
+
+    @Test
+    fun plainOrMalformedLine_isNormalWithWholeText() {
+        assertEquals(TextMessage(MessageType.NORMAL, "नमस्ते"), TextLines.decode("नमस्ते"))
+        assertEquals(TextMessage(MessageType.NORMAL, "[ALERT]बिना जगह"), TextLines.decode("[ALERT]बिना जगह"))
+        assertEquals(TextMessage(MessageType.NORMAL, "[alert] छोटे अक्षर"), TextLines.decode("[alert] छोटे अक्षर"))
+    }
+
+    @Test
+    fun blankMessage_isNotEncoded() {
+        assertNull(TextLines.encode(TextMessage(MessageType.ALERT, "   ")))
+    }
 }

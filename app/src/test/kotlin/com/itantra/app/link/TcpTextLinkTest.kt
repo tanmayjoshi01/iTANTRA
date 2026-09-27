@@ -111,4 +111,15 @@ class TcpTextLinkTest {
             assertEquals("Sent: मेरा नाम पारस है", withTimeout(5_000) { sender.state.first { it.sentCount == 1 } }.lastEvent)
         }
     }
+
+    @Test
+    fun encodedAlertAndNormal_travelOverTcp_andDecode() {
+        connect(startReceiver())
+        TextLines.encode(TextMessage(MessageType.ALERT, "मदद चाहिए"))?.let(sender::send)
+        TextLines.encode(TextMessage(MessageType.NORMAL, "नमस्ते"))?.let(sender::send)
+        assertEquals(
+            listOf(TextMessage(MessageType.ALERT, "मदद चाहिए"), TextMessage(MessageType.NORMAL, "नमस्ते")),
+            awaitMessages(2).map(TextLines::decode),
+        )
+    }
 }

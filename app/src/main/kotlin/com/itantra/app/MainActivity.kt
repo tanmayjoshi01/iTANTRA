@@ -1,6 +1,11 @@
 package com.itantra.app
 
 import android.Manifest
+import com.itantra.app.link.ReceiverBrowser
+import com.itantra.app.link.Language
+import com.itantra.app.link.TextMessage
+import com.itantra.app.link.TextLines
+import com.itantra.app.link.MessageType
 import com.itantra.app.link.BluetoothTextSender
 import com.itantra.app.link.BluetoothTextReceiver
 import androidx.compose.foundation.rememberScrollState
@@ -76,14 +81,21 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val controller = viewModel.controller
         setContent {
+            // Follows language switches: the view model replaces the controller (one model at a time).
+            val controller by viewModel.controllerFlow.collectAsState()
             val state by controller.state.collectAsState()
+            val sourceLanguage by viewModel.sourceLanguage.collectAsState()
+            val sourceModelInstalled by viewModel.sourceModelInstalled.collectAsState()
+            val voiceLanguage by viewModel.voiceLanguage.collectAsState()
+            val pending by viewModel.pending.collectAsState()
+            val browserState by viewModel.browser.state.collectAsState()
             val senderState by viewModel.sender.state.collectAsState()
             val receiverState by viewModel.receiver.state.collectAsState()
             val ttsState by viewModel.tts.state.collectAsState()
             val alertMode by viewModel.alertMode.collectAsState()
             val transport by viewModel.transport.collectAsState()
+            val outgoingMode by viewModel.outgoingMode.collectAsState()
             val btSenderState by viewModel.btSender.state.collectAsState()
             val btReceiverState by viewModel.btReceiver.state.collectAsState()
             var pendingBtAction by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -110,7 +122,7 @@ class MainActivity : ComponentActivity() {
                 onRefresh = { withBt { viewModel.btSender.refreshPairedDevices() } },
                 onConnect = { device -> withBt { viewModel.btSender.connect(device) } },
                 onDisconnect = { viewModel.btSender.disconnect() },
-                onSend = { viewModel.btSender.send(it) },
+                onSend = { viewModel.sendOutgoing(it) },
                 onStartReceiver = { withBt { viewModel.btReceiver.start() } },
                 onStopReceiver = viewModel.btReceiver::stop,
                 onClearReceived = viewModel.btReceiver::clearMessages,
@@ -129,7 +141,7 @@ class MainActivity : ComponentActivity() {
                     senderState = senderState,
                     onConnect = { host, port -> viewModel.sender.connect(host, port) },
                     onDisconnect = { viewModel.sender.disconnect() },
-                    onSendText = { viewModel.sender.send(it) },
+                    onSendText = { viewModel.sendOutgoing(it) },
                     receiverState = receiverState,
                     onStartReceiver = viewModel.receiver::start,
                     onStopReceiver = viewModel.receiver::stop,
@@ -141,6 +153,19 @@ class MainActivity : ComponentActivity() {
                     transport = transport,
                     onTransport = { viewModel.transport.value = it },
                     bt = bt,
+                    lang = LangUi(
+                        source = sourceLanguage,
+                        modelInstalled = sourceModelInstalled,
+                        onSource = viewModel::selectSourceLanguage,
+                        voice = voiceLanguage,
+                        onVoice = { viewModel.voiceLanguage.value = it },
+                        pending = pending,
+                        discovery = browserState,
+                        onFindReceivers = viewModel.browser::start,
+                        onConnectFound = { viewModel.sender.connect(it.host, it.port) },
+                    ),
+                    outgoingMode = outgoingMode,
+                    onOutgoingMode = { viewModel.outgoingMode.value = it },
                     state = state,
                     onStart = {
                         if (hasMicrophonePermission()) {
@@ -204,6 +229,9 @@ private fun AppScreen(
     transport: Transport,
     onTransport: (Transport) -> Unit,
     bt: BtUi,
+    lang: LangUi,
+    outgoingMode: MessageType,
+    onOutgoingMode: (MessageType) -> Unit,
     state: SpeechState,
     onStart: () -> Unit,
     onStop: () -> Unit,
@@ -235,33 +263,56 @@ private fun AppScreen(
             }
             if (tab == Tab.Receive) {
                 if (transport == Transport.WIFI) {
-                    ReceiverPanel(wifiReceiverView(receiverState), onStartReceiver, onStopReceiver, onClearReceived, ttsState, alertMode, onAlertMode, onInstallHindi)
+                    ReceiverPanel(wifiReceiverView(receiverState), onStartReceiver, onStopReceiver, onClearReceived, ttsState, alertMode, onAlertMode, onInstallHindi, lang)
                 } else {
                     if (bt.receiver.status.contains("OFF")) {
                         OutlinedButton(onClick = bt.onEnableBluetooth) { Text(stringResource(R.string.turn_on_bluetooth)) }
                     }
                     ReceiverPanel(
                         ReceiverView(bt.receiver.status, bt.receiver.failed, bt.receiver.running, bt.receiver.messages, addressLine = null),
-                        bt.onStartReceiver, bt.onStopReceiver, bt.onClearReceived, ttsState, alertMode, onAlertMode, onInstallHindi,
+                        bt.onStartReceiver, bt.onStopReceiver, bt.onClearReceived, ttsState, alertMode, onAlertMode, onInstallHindi, lang,
                     )
                 }
                 return@Column
             }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.message_mode))
+                TabButton(stringResource(R.string.mode_normal), outgoingMode == MessageType.NORMAL) { onOutgoingMode(MessageType.NORMAL) }
+                TabButton(stringResource(R.string.mode_alert_outgoing), outgoingMode == MessageType.ALERT) { onOutgoingMode(MessageType.ALERT) }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.my_language))
+                Language.entries.forEach { l ->
+                    TabButton(l.displayName, lang.source == l) { if (!state.isListening) lang.onSource(l) }
+                }
+            }
+            if (!lang.modelInstalled) {
+                Text(stringResource(R.string.model_not_installed, lang.source.displayName, lang.source.modelFile), color = MaterialTheme.colorScheme.error)
+            }
             if (transport == Transport.WIFI) {
-                SenderPanel(senderState, onConnect, onDisconnect, onSendText)
+                SenderPanel(senderState, onConnect, onDisconnect, onSendText, lang.source.sample)
+                DiscoveryRow(lang)
             } else {
-                BluetoothSenderPanel(bt)
+                BluetoothSenderPanel(bt, lang.source.sample)
+            }
+            lang.pending.forEach { m ->
+                Text(
+                    if (m.type == MessageType.ALERT) stringResource(R.string.sos_pending, m.text) else stringResource(R.string.message_pending, m.text),
+                    color = if (m.type == MessageType.ALERT) Color(0xFFD32F2F) else Color.Unspecified,
+                )
             }
             Text(stringResource(R.string.status_label, stringResource(statusText(state))))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onStart, enabled = !state.isListening) {
+                Button(onClick = onStart, enabled = !state.isListening && lang.modelInstalled) {
                     Text(stringResource(R.string.start))
                 }
                 Button(onClick = onStop, enabled = state.isListening) {
                     Text(stringResource(R.string.stop))
                 }
             }
-            HoldToTalkButton(isListening = state.isListening, onPress = onStart, onRelease = onStop)
+            if (lang.modelInstalled) {
+                HoldToTalkButton(isListening = state.isListening, onPress = onStart, onRelease = onStop)
+            }
             state.transcript.lastOrNull()?.result?.text?.takeIf { it.isNotBlank() }?.let {
                 Text(stringResource(R.string.recognized_label, it), style = MaterialTheme.typography.titleLarge)
             }
@@ -342,10 +393,11 @@ private fun SenderPanel(
     onConnect: (String, Int) -> Unit,
     onDisconnect: () -> Unit,
     onSendText: (String) -> Unit,
+    sample: String,
 ) {
     var host by rememberSaveable { mutableStateOf("") }
     var port by rememberSaveable { mutableStateOf(DEFAULT_LINK_PORT.toString()) }
-    var testText by rememberSaveable { mutableStateOf("नमस्ते") }
+    var testText by rememberSaveable(sample) { mutableStateOf(sample) }
     val connected = state.status is TcpTextSender.Status.Connected
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
@@ -412,6 +464,7 @@ private fun ColumnScope.ReceiverPanel(
     alertMode: Boolean,
     onAlertMode: (Boolean) -> Unit,
     onInstallHindi: () -> Unit,
+    lang: LangUi,
 ) {
     val running = view.running
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -434,9 +487,21 @@ private fun ColumnScope.ReceiverPanel(
             OutlinedButton(onClick = onInstallHindi) { Text(stringResource(R.string.install_hindi_voice)) }
         }
     }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.voice_language))
+        TabButton(stringResource(R.string.voice_auto), lang.voice == null) { lang.onVoice(null) }
+        Language.entries.forEach { l -> TabButton(l.displayName, lang.voice == l) { lang.onVoice(l) } }
+    }
+    Text(
+        stringResource(R.string.voices_available, Language.entries.joinToString("  ") { l -> "${l.displayName} ${if (tts.voices[l] == true) "✓" else "✗"}" }),
+        style = MaterialTheme.typography.bodySmall,
+    )
+    tts.lastProblem?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     if (tts.speaking) Text(stringResource(R.string.speaking), style = MaterialTheme.typography.titleMedium)
     tts.lastStartLatencyMs?.let { Text(stringResource(R.string.tts_latency, it), style = MaterialTheme.typography.bodySmall) }
-    if (alertMode && view.messages.isNotEmpty()) {
+    val decoded = TextLines.dropDuplicates(view.messages.map(TextLines::decode))
+    val latest = decoded.lastOrNull()
+    if (latest != null && (alertMode || latest.type == MessageType.ALERT)) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -445,17 +510,23 @@ private fun ColumnScope.ReceiverPanel(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(stringResource(R.string.alert_banner), color = Color.White, style = MaterialTheme.typography.headlineMedium)
-            Text(view.messages.last(), color = Color.White, style = MaterialTheme.typography.headlineMedium)
+            Text(latest.text, color = Color.White, style = MaterialTheme.typography.headlineMedium)
         }
     }
-    Text(stringResource(R.string.received_label, view.messages.size), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.received_label, decoded.size), style = MaterialTheme.typography.titleMedium)
     val listState = rememberLazyListState()
     LaunchedEffect(view.messages.size) {
         if (view.messages.isNotEmpty()) listState.animateScrollToItem(view.messages.lastIndex)
     }
     LazyColumn(state = listState, modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        itemsIndexed(view.messages) { index, message ->
-            Text(stringResource(R.string.transcript_entry, index + 1, message), style = MaterialTheme.typography.titleLarge)
+        itemsIndexed(decoded) { index, message ->
+            val tag = "[${message.language.code}] "
+            val shown = if (message.type == MessageType.ALERT) "🚨 ALERT: $tag${message.text}" else "$tag${message.text}"
+            Text(
+                stringResource(R.string.transcript_entry, index + 1, shown),
+                style = MaterialTheme.typography.titleLarge,
+                color = if (message.type == MessageType.ALERT) Color(0xFFD32F2F) else Color.Unspecified,
+            )
         }
     }
 }
@@ -533,8 +604,8 @@ private class BtUi(
 
 /** Phone A over Bluetooth: pick an already-paired phone, connect, send. */
 @Composable
-private fun BluetoothSenderPanel(bt: BtUi) {
-    var testText by rememberSaveable { mutableStateOf("नमस्ते") }
+private fun BluetoothSenderPanel(bt: BtUi, sample: String) {
+    var testText by rememberSaveable(sample) { mutableStateOf(sample) }
     val s = bt.sender
     LaunchedEffect(Unit) { bt.onRefresh() }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -565,6 +636,37 @@ private fun BluetoothSenderPanel(bt: BtUi) {
         )
         OutlinedButton(onClick = { bt.onSend(testText) }, enabled = s.connected && testText.isNotBlank()) {
             Text(stringResource(R.string.send))
+        }
+    }
+}
+
+/** Language selection state and actions for the UI. */
+private class LangUi(
+    val source: Language,
+    val modelInstalled: Boolean,
+    val onSource: (Language) -> Unit,
+    val voice: Language?,
+    val onVoice: (Language?) -> Unit,
+    val pending: List<TextMessage>,
+    val discovery: ReceiverBrowser.State,
+    val onFindReceivers: () -> Unit,
+    val onConnectFound: (ReceiverBrowser.Found) -> Unit,
+)
+
+/** Receivers found on the Wi-Fi network (NSD). Manual IP above remains the fallback. */
+@Composable
+private fun DiscoveryRow(lang: LangUi) {
+    val d = lang.discovery
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
+    ) {
+        OutlinedButton(onClick = lang.onFindReceivers, enabled = !d.searching) { Text(stringResource(R.string.find_receivers)) }
+        if (d.searching && d.found.isEmpty()) Text(stringResource(R.string.searching))
+        d.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        d.found.forEach { f ->
+            Button(onClick = { lang.onConnectFound(f) }) { Text(stringResource(R.string.found_receiver, f.name)) }
         }
     }
 }

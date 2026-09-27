@@ -51,4 +51,16 @@
     <string name="turn_on_bluetooth">Turn on Bluetooth</string>
     <string name="refresh_paired">Refresh paired</string>
     <string name="paired_devices_hint">Paired devices (pair in Android Settings first) - tap to connect:</string>
+    <string name="message_mode">Message mode:</string>
+    <string name="mode_alert_outgoing">🚨 ALERT</string>
+    <string name="my_language">My language:</string>
+    <string name="model_not_installed">%1$s STT model not installed (%2$s). Speech input disabled; manual text still works.</string>
+    <string name="voice_language">Voice (no translation):</string>
+    <string name="voice_auto">Auto</string>
+    <string name="voices_available">Voices: %1$s</string>
+    <string name="message_pending">⏳ Message pending: %1$s</string>
+    <string name="sos_pending">🚨 SOS PENDING: %1$s</string>
+    <string name="find_receivers">Find receivers</string>
+    <string name="searching">Searching…</string>
+    <string name="found_receiver">%1$s 🟢 Connect</string>
 </resources>
