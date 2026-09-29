@@ -180,4 +180,21 @@
     <string name="translation_unavailable">Translation unavailable (%1$s). Original played.</string>
     <string name="translation_node">Translation node (host:port)</string>
     <string name="check">Check</string>
+    <!-- SOS location -->
+    <string name="sos_getting_location">📍 Getting location…</string>
+    <string name="sos_sent">✓ SOS SENT</string>
+    <string name="sos_queued">⏳ SOS QUEUED (will send when connected)</string>
+    <string name="sos_location_attached">📍 Location attached (%1$.5f, %2$.5f)</string>
+    <string name="sos_location_unavailable_reason">📍 Location unavailable (%1$s)</string>
+    <string name="sos_location_received">📍 Location received</string>
+    <string name="sos_location_unavailable">📍 Location unavailable</string>
+    <string name="sos_latitude">Latitude: %1$s</string>
+    <string name="sos_longitude">Longitude: %1$s</string>
+    <string name="sos_fix_time">Located at %1$s</string>
+    <string name="sos_accuracy">±%1$d m</string>
+    <string name="sos_sent_time">SOS sent at %1$s</string>
+    <string name="sos_location_short">📍 %1$.5f, %2$.5f</string>
+    <string name="sos_notification_location">Location: %1$.6f, %2$.6f</string>
+    <string name="view_location">📍 VIEW LOCATION</string>
+    <string name="no_map_app">No map application available.</string>
 </resources>
