@@ -4,6 +4,9 @@ import android.app.Application
 import android.os.Build
 import android.util.Log
 import com.itantra.app.link.BluetoothTextReceiver
+import com.itantra.app.link.Language
+import com.itantra.app.link.NodeTranslator
+import com.itantra.app.link.Translation
 import com.itantra.app.link.MessageType
 import com.itantra.app.link.ReceiverAdvertiser
 import com.itantra.app.link.ReceiverTts
@@ -13,6 +16,7 @@ import com.itantra.app.link.TextMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +25,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Phone B's receiving side, owned by the process rather than the screen: the
@@ -54,9 +59,28 @@ class ReceiverHub private constructor(private val app: Application) {
 
     private val alarm = SosAlarm(app)
 
+    /** What this receiver wants to hear: null = each message in its original language, else a translation target. */
+    private val _hearingLanguage = MutableStateFlow<Language?>(null)
+    val hearingLanguage: StateFlow<Language?> = _hearingLanguage.asStateFlow()
+
+    /** Client for the laptop translation node (the one translation model). */
+    val translator = NodeTranslator()
+
+    /** Whether the translation node answered last time (null = not checked yet). */
+    private val _translationNodeOnline = MutableStateFlow<Boolean?>(null)
+    val translationNodeOnline: StateFlow<Boolean?> = _translationNodeOnline.asStateFlow()
+
+    /** Translation outcome per received message (same key as [receivedAt]). The original text is never replaced. */
+    private val _translations = MutableStateFlow<Map<String, TranslationState>>(emptyMap())
+    val translations: StateFlow<Map<String, TranslationState>> = _translations.asStateFlow()
+
+    /** Messages to translate (if asked for) and speak, one at a time in arrival order. */
+    private val speechQueue = Channel<Pair<String, TextMessage>>(Channel.UNLIMITED)
+
     init {
         handleNewMessages(receiver.state.map { it.messages })
         handleNewMessages(btReceiver.state.map { it.messages })
+        scope.launch { for ((key, message) in speechQueue) translateAndSpeak(key, message) }
         // Advertise the Wi-Fi receiver while it is listening or connected.
         scope.launch {
             receiver.state.map { it.status }.distinctUntilChanged().collect { status ->
@@ -84,6 +108,28 @@ class ReceiverHub private constructor(private val app: Application) {
         SosNotifier.cancel(app)
     }
 
+    fun selectHearingLanguage(language: Language?) {
+        _hearingLanguage.value = language
+        Log.i(TRANSLATION_TAG, "hearing language -> ${language?.code ?: "original"}")
+        if (language != null) checkTranslationNode()
+    }
+
+    fun setTranslationNode(host: String, port: Int) {
+        translator.host = host
+        translator.port = port
+        checkTranslationNode()
+    }
+
+    fun checkTranslationNode() {
+        val target = _hearingLanguage.value ?: Translation.TARGETS.first()
+        val source = Translation.DIRECTIONS.first { it.second == target }.first
+        scope.launch {
+            val ok = withContext(Dispatchers.IO) { translator.healthy(source, target) }
+            _translationNodeOnline.value = ok
+            Log.i(TRANSLATION_TAG, "node ${translator.host}:${translator.port} ${if (ok) "ONLINE" else "UNREACHABLE"}")
+        }
+    }
+
     fun stopReceivers() {
         receiver.stop()
         btReceiver.stop()
@@ -107,22 +153,69 @@ class ReceiverHub private constructor(private val app: Application) {
                     }
                     val key = message.id ?: line
                     if (key !in _receivedAt.value) _receivedAt.value = _receivedAt.value + (key to System.currentTimeMillis())
-                    if (message.type == MessageType.SOS) {
-                        raiseSos(message)
-                        return@forEach
-                    }
-                    // No translation exists, so playback is always in the language the text is in.
                     Log.i(
                         TRANSPORT_TAG,
                         "Receiver: received type=${message.type} lang=${message.language.code} " +
-                            "playback=${message.language.code} translation=unavailable text=\"${message.text}\"",
+                            "hearing=${_hearingLanguage.value?.code ?: "original"} text=\"${message.text}\"",
                     )
-                    // The message's own type decides; the receiver's ALERT switch still forces alert mode.
-                    tts.speak(message.text, alert = message.type == MessageType.ALERT || alertMode.value, language = message.language)
+                    // SOS is shown and sounded at once; translation/speech never delays it.
+                    if (message.type == MessageType.SOS) raiseSos(message)
+                    speechQueue.trySend(key to message)
                 }
                 handled = messages.size
             }
         }
+    }
+
+    /**
+     * Translates [message] if the receiver asked for another language and the
+     * model covers the pair, then speaks the final text in that language's
+     * voice. If translation is unavailable or fails, the original is spoken in
+     * its own language and the failure is recorded for the UI (never claimed as translated).
+     */
+    private suspend fun translateAndSpeak(key: String, message: TextMessage) {
+        // The message's own type decides; the receiver's ALERT switch still forces alert mode.
+        val alert = message.type != MessageType.NORMAL || alertMode.value
+        var text = message.text
+        var voice = message.language
+        when (val route = Translation.route(message.language, _hearingLanguage.value)) {
+            Translation.Route.Original -> Unit
+            is Translation.Route.Unsupported -> {
+                val reason = "no translation model for ${route.source.displayName} → ${route.target.displayName}"
+                record(key, TranslationState.Failed(route.target, reason))
+                Log.i(TRANSLATION_TAG, "id=${message.id} ${route.source.code}->${route.target.code}: $reason; speaking original")
+            }
+            is Translation.Route.Translate -> {
+                record(key, TranslationState.Pending(route.target))
+                val startNs = System.nanoTime()
+                val reply = withContext(Dispatchers.IO) { translator.translate(message.text, route.source, route.target) }
+                val ms = (System.nanoTime() - startNs) / 1_000_000
+                when (reply) {
+                    is Translation.Reply.Ok -> {
+                        _translationNodeOnline.value = true
+                        record(key, TranslationState.Done(route.target, reply.text, ms))
+                        text = reply.text
+                        voice = route.target
+                        Log.i(
+                            TRANSLATION_TAG,
+                            "id=${message.id} ${route.source.code}->${route.target.code} ${ms}ms (node ${reply.nodeMs}ms): " +
+                                "\"${message.text}\" -> \"${reply.text}\"",
+                        )
+                    }
+                    is Translation.Reply.Failed -> {
+                        if ("unreachable" in reply.reason) _translationNodeOnline.value = false
+                        record(key, TranslationState.Failed(route.target, reply.reason))
+                        Log.w(TRANSLATION_TAG, "id=${message.id} ${route.source.code}->${route.target.code} FAILED after ${ms}ms: ${reply.reason}; speaking original")
+                    }
+                }
+            }
+        }
+        Log.i(TRANSLATION_TAG, "speak id=${message.id} voice=${voice.code} alert=$alert text=\"$text\"")
+        tts.speak(text, alert = alert, language = voice)
+    }
+
+    private fun record(key: String, state: TranslationState) {
+        _translations.value = _translations.value + (key to state)
     }
 
     private fun raiseSos(message: TextMessage) {
@@ -136,10 +229,22 @@ class ReceiverHub private constructor(private val app: Application) {
         const val LINK_TAG = "TcpTextLink"
         const val TRANSPORT_TAG = "TextTransport"
         const val SOS_TAG = "Sos"
+        const val TRANSLATION_TAG = "Translation"
 
         @Volatile private var instance: ReceiverHub? = null
 
         fun get(app: Application): ReceiverHub =
             instance ?: synchronized(this) { instance ?: ReceiverHub(app).also { instance = it } }
     }
+}
+
+/** Translation of one received message, for display next to the (always kept) original. */
+sealed interface TranslationState {
+    val target: Language
+
+    data class Pending(override val target: Language) : TranslationState
+
+    data class Done(override val target: Language, val text: String, val latencyMs: Long) : TranslationState
+
+    data class Failed(override val target: Language, val reason: String) : TranslationState
 }

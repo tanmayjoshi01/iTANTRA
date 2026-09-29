@@ -86,6 +86,16 @@ class SpeechViewModel(application: Application) : AndroidViewModel(application) 
 
     fun acknowledgeSos() = hub.acknowledgeSos()
 
+    /** Receiver: the language to hear (null = original), translation outcomes, and the translation node. */
+    val hearingLanguage: StateFlow<Language?> get() = hub.hearingLanguage
+    val translations: StateFlow<Map<String, TranslationState>> get() = hub.translations
+    val translationNodeOnline: StateFlow<Boolean?> get() = hub.translationNodeOnline
+    val translationNodeAddress: String get() = "${hub.translator.host}:${hub.translator.port}"
+
+    fun selectHearingLanguage(language: Language?) = hub.selectHearingLanguage(language)
+
+    fun setTranslationNode(host: String, port: Int) = hub.setTranslationNode(host, port)
+
     /** Type given to every outgoing message from this phone (manual Send and STT results). */
     val outgoingMode = MutableStateFlow(MessageType.NORMAL)
 
@@ -177,7 +187,8 @@ class SpeechViewModel(application: Application) : AndroidViewModel(application) 
      */
     fun sendSos() {
         Log.i(SOS_TAG, "SOS pressed (transport=${transport.value})")
-        send("SOS from ${Build.MODEL}", MessageType.SOS, _sourceLanguage.value)
+        // Hindi text (tagged Hindi), so a receiver can translate and speak it.
+        send("SOS: तुरंत मदद चाहिए (${Build.MODEL})", MessageType.SOS, Language.HI)
         if (transport.value == Transport.WIFI && sender.state.value.status !is TcpTextSender.Status.Connected &&
             sender.state.value.status !is TcpTextSender.Status.Connecting
         ) {

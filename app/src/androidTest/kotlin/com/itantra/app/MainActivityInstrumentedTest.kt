@@ -62,7 +62,7 @@ class MainActivityInstrumentedTest {
     fun receiveTab_showsReceiverAndEmptyTimeline() {
         composeRule.onNodeWithText(text(R.string.tab_receive_ui)).performClick()
         composeRule.onNodeWithText(text(R.string.no_messages_yet)).assertExists()
-        composeRule.onNodeWithText(text(R.string.playback_caption)).assertExists()
+        composeRule.onNodeWithText(text(R.string.hearing_original_caption)).assertExists()
     }
 
     /**

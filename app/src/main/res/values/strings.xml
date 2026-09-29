@@ -166,4 +166,18 @@
     <string name="sec_playback">Playback language</string>
     <string name="playback_same_as_received">Same as received language</string>
     <string name="playback_caption">Translation is not installed, so each message is played in the language it was received in. ✓ = voice available on this device.</string>
+    <!-- Receiver translation (one model: Hindi → Odia, laptop translation node) -->
+    <string name="sec_hearing">Hearing language</string>
+    <string name="hearing_original">Original</string>
+    <string name="hearing_translated">%1$s · translated</string>
+    <string name="hearing_original_caption">Each message is played in the language it was sent in.</string>
+    <string name="hearing_translate_caption">%1$s messages are translated to %2$s and spoken in %2$s. Other messages play in their original language.</string>
+    <string name="translation_ready">● Translation ready (offline translation node)</string>
+    <string name="translation_offline">● Translation node not reachable: originals will be played</string>
+    <string name="translation_checking">Checking translation node…</string>
+    <string name="translating">Translating to %1$s…</string>
+    <string name="translated_to">→ %1$s</string>
+    <string name="translation_unavailable">Translation unavailable (%1$s). Original played.</string>
+    <string name="translation_node">Translation node (host:port)</string>
+    <string name="check">Check</string>
 </resources>

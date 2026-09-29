@@ -87,6 +87,8 @@ import com.itantra.app.link.TcpTextReceiver
 import com.itantra.app.link.TcpTextSender
 import com.itantra.app.link.TextLines
 import com.itantra.app.link.TextMessage
+import com.itantra.app.link.NodeTranslator
+import com.itantra.app.link.Translation
 import com.itantra.app.link.localIpv4Addresses
 import com.itantra.app.speech.SpeechError
 import com.itantra.app.speech.SpeechState
@@ -120,6 +122,9 @@ class MainActivity : ComponentActivity() {
             val sourceModelInstalled by viewModel.sourceModelInstalled.collectAsState()
             val installedLanguages by viewModel.installedLanguagesFlow.collectAsState()
             val activeSos by viewModel.activeSos.collectAsState()
+            val hearingLanguage by viewModel.hearingLanguage.collectAsState()
+            val translations by viewModel.translations.collectAsState()
+            val translationNodeOnline by viewModel.translationNodeOnline.collectAsState()
             val pending by viewModel.pending.collectAsState()
             val browserState by viewModel.browser.state.collectAsState()
             val senderState by viewModel.sender.state.collectAsState()
@@ -189,7 +194,7 @@ class MainActivity : ComponentActivity() {
             ItantraTheme {
                 val sos = activeSos
                 if (sos != null) {
-                    SosScreen(sos, onAcknowledge = {
+                    SosScreen(sos, translation = sos.id?.let { translations[it] }, onAcknowledge = {
                         viewModel.acknowledgeSos()
                         clearShowOverLockScreen()
                     })
@@ -228,6 +233,14 @@ class MainActivity : ComponentActivity() {
                     receivedAt = receivedAt,
                     onSos = viewModel::sendSos,
                     advertisedName = viewModel.advertisedName,
+                    translate = TranslateUi(
+                        hearing = hearingLanguage,
+                        onHearing = viewModel::selectHearingLanguage,
+                        results = translations,
+                        nodeOnline = translationNodeOnline,
+                        nodeAddress = viewModel.translationNodeAddress,
+                        onSetNode = viewModel::setTranslationNode,
+                    ),
                     fullScreenSosAllowed = SosNotifier.canUseFullScreenIntent(this@MainActivity),
                     onAllowFullScreenSos = ::openFullScreenIntentSettings,
                     state = state,
@@ -334,6 +347,7 @@ private fun AppScreen(
     receivedAt: Map<String, Long>,
     onSos: () -> Unit,
     advertisedName: String,
+    translate: TranslateUi,
     fullScreenSosAllowed: Boolean,
     onAllowFullScreenSos: () -> Unit,
     state: SpeechState,
@@ -374,7 +388,7 @@ private fun AppScreen(
                     ReceiveScreen(
                         receiverView, transport, onTransport, bt, onStartReceiver, onStopReceiver, onClearReceived,
                         ttsState, alertMode, onAlertMode, onInstallHindi, receivedAt,
-                        advertisedName, fullScreenSosAllowed, onAllowFullScreenSos,
+                        advertisedName, fullScreenSosAllowed, onAllowFullScreenSos, translate,
                     )
                 }
                 Spacer(Modifier.height(24.dp))
@@ -711,6 +725,7 @@ private fun ReceiveScreen(
     advertisedName: String,
     fullScreenSosAllowed: Boolean,
     onAllowFullScreenSos: () -> Unit,
+    translate: TranslateUi,
 ) {
     val onStart = if (transport == Transport.WIFI) onStartWifi else bt.onStartReceiver
     val onStop = if (transport == Transport.WIFI) onStopWifi else bt.onStopReceiver
@@ -758,24 +773,42 @@ private fun ReceiveScreen(
     // 2. Emergency alert (latest message, if it is an alert)
     val latest = messages.lastOrNull()
     AnimatedVisibility(visible = latest != null && (latest.type != MessageType.NORMAL || alertMode)) {
-        if (latest != null) AlertCard(latest)
+        if (latest != null) AlertCard(latest, translate.results[latest.id ?: rawLineFor(latest, view.messages)])
     }
 
-    // 3. Playback language. There is no translation, so a message can only be
-    // played in the language it was received in; the other choices are shown as unavailable.
-    SectionCard(title = stringResource(R.string.sec_playback)) {
-        Text(stringResource(R.string.playback_same_as_received), style = MaterialTheme.typography.titleMedium)
+    // 3. Hearing language: the original, or a translation the installed model really provides.
+    SectionCard(title = stringResource(R.string.sec_hearing)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            Language.entries.forEach { l ->
+            FilterChip(
+                selected = translate.hearing == null,
+                onClick = { translate.onHearing(null) },
+                label = { Text(stringResource(R.string.hearing_original)) },
+            )
+            Translation.TARGETS.forEach { target ->
                 FilterChip(
-                    selected = tts.voices[l] == true,
-                    onClick = {},
-                    enabled = false,
-                    label = { Text("${l.nativeName} ${if (tts.voices[l] == true) "✓" else "✗"}") },
+                    selected = translate.hearing == target,
+                    onClick = { translate.onHearing(target) },
+                    label = { Text(stringResource(R.string.hearing_translated, target.nativeName)) },
                 )
             }
         }
-        Text(stringResource(R.string.playback_caption), style = MaterialTheme.typography.bodySmall, color = ItantraColors.Muted)
+        Text(
+            if (translate.hearing == null) {
+                stringResource(R.string.hearing_original_caption)
+            } else {
+                val source = Translation.DIRECTIONS.first { it.second == translate.hearing }.first
+                stringResource(R.string.hearing_translate_caption, source.nativeName, translate.hearing.nativeName)
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = ItantraColors.Muted,
+        )
+        if (translate.hearing != null) {
+            when (translate.nodeOnline) {
+                true -> Text(stringResource(R.string.translation_ready), color = ItantraColors.Success, style = MaterialTheme.typography.bodyMedium)
+                false -> Text(stringResource(R.string.translation_offline), color = ItantraColors.Alert, style = MaterialTheme.typography.bodyMedium)
+                null -> Text(stringResource(R.string.translation_checking), color = ItantraColors.Muted, style = MaterialTheme.typography.bodyMedium)
+            }
+        }
         if (tts.speaking) {
             Text(stringResource(R.string.speaking), style = MaterialTheme.typography.titleMedium, color = ItantraColors.Primary)
         }
@@ -790,7 +823,10 @@ private fun ReceiveScreen(
         if (messages.isEmpty()) {
             Text(stringResource(R.string.no_messages_yet), color = ItantraColors.Muted)
         }
-        messages.asReversed().forEach { m -> MessageCard(m, receivedAt[m.id ?: rawLineFor(m, view.messages)]) }
+        messages.asReversed().forEach { m ->
+            val key = m.id ?: rawLineFor(m, view.messages)
+            MessageCard(m, receivedAt[key], translate.results[key])
+        }
     }
 
     // 5. Advanced / diagnostics (collapsed)
@@ -798,6 +834,7 @@ private fun ReceiveScreen(
         view.addressLine?.let { DiagLine(stringResource(R.string.diag_this_device), it) }
         DiagLine(stringResource(R.string.diag_receiver), view.status)
         DiagLine(stringResource(R.string.diag_tts), tts.status)
+        TranslationNodeSetting(translate)
         tts.lastStartLatencyMs?.let { DiagLine(stringResource(R.string.diag_tts_latency), "$it ms") }
         DiagLine(
             stringResource(R.string.diag_voices),
@@ -816,7 +853,7 @@ private fun rawLineFor(m: TextMessage, lines: List<String>): String =
     lines.firstOrNull { TextLines.decode(it) == m } ?: m.text
 
 @Composable
-private fun AlertCard(message: TextMessage) {
+private fun AlertCard(message: TextMessage, translation: TranslationState?) {
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = ItantraColors.Alert,
@@ -829,6 +866,7 @@ private fun AlertCard(message: TextMessage) {
                 stringResource(if (message.type == MessageType.SOS) R.string.sos_received_title else R.string.emergency_alert),
                 color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(message.text, color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
+            TranslationLine(translation, onRed = true)
             Text(
                 stringResource(R.string.alert_meta, message.language.nativeName),
                 color = Color.White.copy(alpha = 0.9f),
@@ -839,7 +877,7 @@ private fun AlertCard(message: TextMessage) {
 }
 
 @Composable
-private fun MessageCard(m: TextMessage, time: Long?) {
+private fun MessageCard(m: TextMessage, time: Long?, translation: TranslationState?) {
     val alert = m.type != MessageType.NORMAL
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -857,6 +895,7 @@ private fun MessageCard(m: TextMessage, time: Long?) {
                 style = MaterialTheme.typography.titleMedium,
                 color = if (alert) ItantraColors.AlertDark else MaterialTheme.colorScheme.onSurface,
             )
+            TranslationLine(translation, onRed = false)
             val timeText = time?.let { DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it)) }
             Text(
                 listOfNotNull(stringResource(R.string.received_in, m.language.nativeName), timeText).joinToString("  ·  "),
@@ -864,6 +903,48 @@ private fun MessageCard(m: TextMessage, time: Long?) {
                 color = ItantraColors.Muted,
             )
         }
+    }
+}
+
+/** "→ ଓଡ଼ିଆ: <translation>", "translating…", or an honest "Translation unavailable" (the original was played). */
+@Composable
+private fun TranslationLine(state: TranslationState?, onRed: Boolean) {
+    state ?: return
+    val strong = if (onRed) Color.White else ItantraColors.PrimaryDark
+    val weak = if (onRed) Color.White.copy(alpha = 0.85f) else ItantraColors.Muted
+    when (state) {
+        is TranslationState.Pending ->
+            Text(stringResource(R.string.translating, state.target.nativeName), color = weak, style = MaterialTheme.typography.bodyMedium)
+        is TranslationState.Done -> {
+            Text(stringResource(R.string.translated_to, state.target.nativeName), color = weak, style = MaterialTheme.typography.labelMedium)
+            Text(state.text, color = strong, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        }
+        is TranslationState.Failed ->
+            Text(
+                stringResource(R.string.translation_unavailable, state.reason),
+                color = if (onRed) Color.White else ItantraColors.Alert,
+                style = MaterialTheme.typography.bodySmall,
+            )
+    }
+}
+
+@Composable
+private fun TranslationNodeSetting(translate: TranslateUi) {
+    var address by rememberSaveable { mutableStateOf(translate.nodeAddress) }
+    Text(stringResource(R.string.translation_node), style = MaterialTheme.typography.labelLarge)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = address,
+            onValueChange = { address = it.trim() },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+            modifier = Modifier.weight(1f),
+        )
+        OutlinedButton(onClick = {
+            val host = address.substringBeforeLast(':', address)
+            val port = address.substringAfterLast(':', "").toIntOrNull() ?: NodeTranslator.DEFAULT_PORT
+            translate.onSetNode(host, port)
+        }) { Text(stringResource(R.string.check)) }
     }
 }
 
@@ -1009,7 +1090,7 @@ private fun SosButton(onSos: () -> Unit) {
 
 /** Full-screen SOS state on the receiver: covers the whole UI until acknowledged. */
 @Composable
-private fun SosScreen(message: TextMessage, onAcknowledge: () -> Unit) {
+private fun SosScreen(message: TextMessage, translation: TranslationState?, onAcknowledge: () -> Unit) {
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -1031,6 +1112,7 @@ private fun SosScreen(message: TextMessage, onAcknowledge: () -> Unit) {
                 fontWeight = FontWeight.Bold,
             )
             Text(message.text, color = Color.White, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+            TranslationLine(translation, onRed = true)
             Spacer(Modifier.height(24.dp))
             Button(
                 onClick = onAcknowledge,
@@ -1268,6 +1350,16 @@ private class BtUi(
     val onStopReceiver: () -> Unit,
     val onClearReceived: () -> Unit,
     val onEnableBluetooth: () -> Unit,
+)
+
+/** Receiver translation: what to hear, per-message results, and the translation node. */
+private class TranslateUi(
+    val hearing: Language?,
+    val onHearing: (Language?) -> Unit,
+    val results: Map<String, TranslationState>,
+    val nodeOnline: Boolean?,
+    val nodeAddress: String,
+    val onSetNode: (String, Int) -> Unit,
 )
 
 /** Language selection, pending messages and discovery state for the UI. */
