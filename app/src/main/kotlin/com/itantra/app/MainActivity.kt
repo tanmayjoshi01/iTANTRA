@@ -10,6 +10,8 @@ import android.os.Build
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
+import android.widget.Toast
 import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -79,6 +81,7 @@ import androidx.compose.ui.unit.dp
 import com.itantra.app.link.BluetoothTextReceiver
 import com.itantra.app.link.BluetoothTextSender
 import com.itantra.app.link.DEFAULT_LINK_PORT
+import com.itantra.app.link.GeoFix
 import com.itantra.app.link.Language
 import com.itantra.app.link.MessageType
 import com.itantra.app.link.ReceiverBrowser
@@ -125,6 +128,7 @@ class MainActivity : ComponentActivity() {
             val hearingLanguage by viewModel.hearingLanguage.collectAsState()
             val translations by viewModel.translations.collectAsState()
             val translationNodeOnline by viewModel.translationNodeOnline.collectAsState()
+            val sosSendState by viewModel.sosSendState.collectAsState()
             val pending by viewModel.pending.collectAsState()
             val browserState by viewModel.browser.state.collectAsState()
             val senderState by viewModel.sender.state.collectAsState()
@@ -173,6 +177,21 @@ class MainActivity : ComponentActivity() {
                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             }
+            // SOS asks for location only when pressed; it is sent whether or not location is granted.
+            val locationPermissionLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestMultiplePermissions(),
+            ) { _ -> viewModel.sendSos() }
+            val onSos: () -> Unit = {
+                val granted = listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                    .any { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
+                if (granted || sosSendState == SpeechViewModel.SosSendState.Locating) {
+                    viewModel.sendSos()
+                } else {
+                    locationPermissionLauncher.launch(
+                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+                    )
+                }
+            }
             val bt = BtUi(
                 sender = btSenderState,
                 receiver = btReceiverState,
@@ -194,7 +213,7 @@ class MainActivity : ComponentActivity() {
             ItantraTheme {
                 val sos = activeSos
                 if (sos != null) {
-                    SosScreen(sos, translation = sos.id?.let { translations[it] }, onAcknowledge = {
+                    SosScreen(sos, translation = sos.id?.let { translations[it] }, onViewLocation = ::openMap, onAcknowledge = {
                         viewModel.acknowledgeSos()
                         clearShowOverLockScreen()
                     })
@@ -231,7 +250,8 @@ class MainActivity : ComponentActivity() {
                     outgoingMode = outgoingMode,
                     onOutgoingMode = { viewModel.outgoingMode.value = it },
                     receivedAt = receivedAt,
-                    onSos = viewModel::sendSos,
+                    onSos = onSos,
+                    sosSendState = sosSendState,
                     advertisedName = viewModel.advertisedName,
                     translate = TranslateUi(
                         hearing = hearingLanguage,
@@ -281,6 +301,18 @@ class MainActivity : ComponentActivity() {
     }
 
     /** Android 14+: the user decides whether this app may show full-screen notifications. */
+    /** Opens the SOS location in whatever map app is installed (no Maps SDK). */
+    private fun openMap(fix: GeoFix) {
+        val uri = Uri.parse("geo:${fix.latLon}?q=${fix.latLon}(SOS)")
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, uri))
+            Log.i("Sos", "VIEW LOCATION opened $uri")
+        } catch (_: ActivityNotFoundException) {
+            Log.w("Sos", "VIEW LOCATION: no map application for $uri")
+            Toast.makeText(this, R.string.no_map_app, Toast.LENGTH_LONG).show()
+        }
+    }
+
     private fun openFullScreenIntentSettings() {
         if (Build.VERSION.SDK_INT < 34) return
         try {
@@ -346,6 +378,7 @@ private fun AppScreen(
     onOutgoingMode: (MessageType) -> Unit,
     receivedAt: Map<String, Long>,
     onSos: () -> Unit,
+    sosSendState: SpeechViewModel.SosSendState,
     advertisedName: String,
     translate: TranslateUi,
     fullScreenSosAllowed: Boolean,
@@ -382,7 +415,7 @@ private fun AppScreen(
                 if (tab == Tab.SpeakAndSend) {
                     SpeakAndSendScreen(
                         link, transport, onTransport, senderState, onConnect, onDisconnect, onSendText, bt, lang,
-                        outgoingMode, onOutgoingMode, onSos, state, onStart, onStop, onClearTranscript,
+                        outgoingMode, onOutgoingMode, onSos, sosSendState, state, onStart, onStop, onClearTranscript,
                     )
                 } else {
                     ReceiveScreen(
@@ -431,6 +464,7 @@ private fun SpeakAndSendScreen(
     outgoingMode: MessageType,
     onOutgoingMode: (MessageType) -> Unit,
     onSos: () -> Unit,
+    sosSendState: SpeechViewModel.SosSendState,
     state: SpeechState,
     onStart: () -> Unit,
     onStop: () -> Unit,
@@ -461,7 +495,8 @@ private fun SpeakAndSendScreen(
     }
 
     // SOS: one tap, over the selected transport (queued first and auto-connected if needed).
-    SosButton(onSos)
+    SosButton(onSos, locating = sosSendState == SpeechViewModel.SosSendState.Locating)
+    SosSendStatus(sosSendState)
 
     // 2. Message mode
     SectionCard(title = stringResource(R.string.sec_message_mode)) {
@@ -896,6 +931,13 @@ private fun MessageCard(m: TextMessage, time: Long?, translation: TranslationSta
                 color = if (alert) ItantraColors.AlertDark else MaterialTheme.colorScheme.onSurface,
             )
             TranslationLine(translation, onRed = false)
+            if (m.type == MessageType.SOS) {
+                Text(
+                    m.location?.let { stringResource(R.string.sos_location_short, it.lat, it.lon) } ?: stringResource(R.string.sos_location_unavailable),
+                    color = ItantraColors.AlertDark,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
             val timeText = time?.let { DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it)) }
             Text(
                 listOfNotNull(stringResource(R.string.received_in, m.language.nativeName), timeText).joinToString("  ·  "),
@@ -1073,10 +1115,11 @@ private fun LanguageChips(selected: Language, installed: Set<Language>, onSelect
 }
 
 @Composable
-private fun SosButton(onSos: () -> Unit) {
+private fun SosButton(onSos: () -> Unit, locating: Boolean) {
     val description = stringResource(R.string.sos_button_description)
     Button(
         onClick = onSos,
+        enabled = !locating,
         colors = ButtonDefaults.buttonColors(containerColor = ItantraColors.Alert),
         shape = RoundedCornerShape(24.dp),
         modifier = Modifier
@@ -1084,13 +1127,39 @@ private fun SosButton(onSos: () -> Unit) {
             .height(76.dp)
             .semantics { contentDescription = description },
     ) {
-        Text(stringResource(R.string.sos_button), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+        Text(
+            stringResource(if (locating) R.string.sos_getting_location else R.string.sos_button),
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+        )
     }
+}
+
+/** One line under the SOS button: sent/queued, and whether a location went with it. */
+@Composable
+private fun SosSendStatus(state: SpeechViewModel.SosSendState) {
+    val sent = state as? SpeechViewModel.SosSendState.Sent ?: return
+    val head = stringResource(if (sent.queued) R.string.sos_queued else R.string.sos_sent)
+    val location = sent.location?.let { stringResource(R.string.sos_location_attached, it.lat, it.lon) }
+        ?: stringResource(R.string.sos_location_unavailable_reason, sent.noLocationReason ?: "")
+    Text(
+        "$head · $location",
+        color = ItantraColors.Alert,
+        style = MaterialTheme.typography.bodyMedium,
+        fontWeight = FontWeight.SemiBold,
+        textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 /** Full-screen SOS state on the receiver: covers the whole UI until acknowledged. */
 @Composable
-private fun SosScreen(message: TextMessage, translation: TranslationState?, onAcknowledge: () -> Unit) {
+private fun SosScreen(
+    message: TextMessage,
+    translation: TranslationState?,
+    onViewLocation: (GeoFix) -> Unit,
+    onAcknowledge: () -> Unit,
+) {
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
@@ -1100,8 +1169,8 @@ private fun SosScreen(message: TextMessage, translation: TranslationState?, onAc
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().verticalScroll(rememberScrollState()),
         ) {
             Text("🚨", style = MaterialTheme.typography.displayLarge)
             Text("SOS", color = Color.White, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Black)
@@ -1113,7 +1182,8 @@ private fun SosScreen(message: TextMessage, translation: TranslationState?, onAc
             )
             Text(message.text, color = Color.White, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
             TranslationLine(translation, onRed = true)
-            Spacer(Modifier.height(24.dp))
+            SosLocationBlock(message, onViewLocation)
+            Spacer(Modifier.height(12.dp))
             Button(
                 onClick = onAcknowledge,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = ItantraColors.AlertDark),
@@ -1121,6 +1191,40 @@ private fun SosScreen(message: TextMessage, translation: TranslationState?, onAc
                 modifier = Modifier.fillMaxWidth().height(72.dp),
             ) {
                 Text(stringResource(R.string.acknowledge_sos), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+/** Where the SOS came from: coordinates and times plus VIEW LOCATION, or an honest "Location unavailable". */
+@Composable
+private fun SosLocationBlock(message: TextMessage, onViewLocation: (GeoFix) -> Unit) {
+    val fix = message.location
+    val time = DateFormat.getTimeInstance(DateFormat.SHORT)
+    Surface(shape = RoundedCornerShape(16.dp), color = Color.White.copy(alpha = 0.14f), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (fix == null) {
+                Text(stringResource(R.string.sos_location_unavailable), color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            } else {
+                Text(stringResource(R.string.sos_location_received), color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.sos_latitude, "%.6f".format(java.util.Locale.ROOT, fix.lat)), color = Color.White, style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.sos_longitude, "%.6f".format(java.util.Locale.ROOT, fix.lon)), color = Color.White, style = MaterialTheme.typography.bodyLarge)
+                val fixLine = listOfNotNull(
+                    fix.fixTimeMs?.let { stringResource(R.string.sos_fix_time, time.format(Date(it))) },
+                    fix.accuracyM?.let { stringResource(R.string.sos_accuracy, it) },
+                ).joinToString("  ·  ")
+                if (fixLine.isNotEmpty()) Text(fixLine, color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium)
+            }
+            message.sentAtMs?.let {
+                Text(stringResource(R.string.sos_sent_time, time.format(Date(it))), color = Color.White.copy(alpha = 0.9f), style = MaterialTheme.typography.bodyMedium)
+            }
+            if (fix != null) {
+                OutlinedButton(
+                    onClick = { onViewLocation(fix) },
+                    border = BorderStroke(2.dp, Color.White),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp).height(56.dp),
+                ) { Text(stringResource(R.string.view_location), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold) }
             }
         }
     }
