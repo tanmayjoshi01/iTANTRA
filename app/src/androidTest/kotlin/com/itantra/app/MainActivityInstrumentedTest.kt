@@ -2,10 +2,8 @@ package com.itantra.app
 
 import android.Manifest
 import android.content.pm.PackageManager
-import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -20,10 +18,9 @@ import org.junit.runner.RunWith
 import java.io.File
 
 /**
- * Runs with RECORD_AUDIO pre-granted, so Start opens the real microphone
- * through speech-engine's AudioRecorder without the system dialog. The
- * denied-permission path is checked manually on the device (the system
- * permission dialog is outside this app's UI).
+ * Runs with RECORD_AUDIO pre-granted. The denied-permission path is checked
+ * manually on the device (the system permission dialog is outside this
+ * app's UI).
  */
 @RunWith(AndroidJUnit4::class)
 class MainActivityInstrumentedTest {
@@ -37,39 +34,35 @@ class MainActivityInstrumentedTest {
 
     private fun text(id: Int, vararg args: Any) = composeRule.activity.getString(id, *args)
 
-    private fun status(id: Int) = text(R.string.status_label, text(id))
-
     @Test
-    fun launch_rendersSpeechScreenInIdleState() {
+    fun launch_rendersDemoScreen() {
         composeRule.onNodeWithText(text(R.string.app_name)).assertExists()
-        composeRule.onNodeWithText(status(R.string.status_idle)).assertExists()
-        composeRule.onNodeWithText(text(R.string.start)).assertIsEnabled()
+        composeRule.onNodeWithText(text(R.string.app_subtitle)).assertExists()
+        composeRule.onNodeWithText(text(R.string.tab_speak_send_ui)).assertExists()
+        composeRule.onNodeWithText(text(R.string.tab_receive_ui)).assertExists()
+        composeRule.onNodeWithText(text(R.string.hold_to_talk)).assertExists()
         composeRule.onNodeWithText(text(R.string.stop)).assertIsNotEnabled()
-        composeRule.onNodeWithText(text(R.string.transcript_label, 0)).assertExists()
-        composeRule.onNodeWithText(text(R.string.transcript_empty)).assertExists()
-        composeRule.onNodeWithText(text(R.string.clear_transcript)).assertIsNotEnabled()
     }
 
     /**
-     * Start opens the real microphone and loads the real
-     * IndicConformerRecognizer. A test install has no model file, so the
-     * recognizer's ModelNotFound must reach the UI and capture must stop.
-     * Skipped if a model has been pushed for this app.
+     * A test install has no model file: speech input is disabled with a
+     * friendly explanation instead of failing at Start. Skipped if a model
+     * has been pushed for this app.
      */
     @Test
-    fun start_withoutModelFile_reportsModelNotFound_andReturnsToIdle() {
+    fun withoutModelFile_speechInputDisabledWithFriendlyMessage() {
         val modelFile = File(composeRule.activity.getExternalFilesDir(null), "indicconformer_hi.onnx")
         assumeFalse("model present; this test covers the missing-model path", modelFile.exists())
 
-        composeRule.onNodeWithText(text(R.string.start)).performClick()
+        composeRule.onNodeWithText(text(R.string.ptt_unavailable)).assertExists()
+        composeRule.onNodeWithText(text(R.string.start)).assertIsNotEnabled()
+    }
 
-        composeRule.waitUntil(timeoutMillis = 10_000) {
-            composeRule.onAllNodesWithText("STT model file not found", substring = true)
-                .fetchSemanticsNodes().isNotEmpty()
-        }
-        composeRule.onNodeWithText(status(R.string.status_idle)).assertExists()
-        composeRule.onNodeWithText(text(R.string.start)).assertIsEnabled()
-        composeRule.onNodeWithText(text(R.string.stop)).assertIsNotEnabled()
+    @Test
+    fun receiveTab_showsReceiverAndEmptyTimeline() {
+        composeRule.onNodeWithText(text(R.string.tab_receive_ui)).performClick()
+        composeRule.onNodeWithText(text(R.string.no_messages_yet)).assertExists()
+        composeRule.onNodeWithText(text(R.string.voice_caption)).assertExists()
     }
 
     /**

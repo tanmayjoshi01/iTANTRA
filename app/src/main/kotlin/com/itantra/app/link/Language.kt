@@ -15,6 +15,14 @@ enum class Language(val code: String, val displayName: String, val modelFile: St
 
     val locale: Locale get() = Locale.forLanguageTag("$code-IN")
 
+    /** The language's own name in its own script, for the UI. */
+    val nativeName: String
+        get() = when (this) {
+            HI -> "हिन्दी"
+            AS -> "অসমীয়া"
+            OR -> "ଓଡ଼ିଆ"
+        }
+
     /** Per-language token file if one is provided, else the shared one (verified for Hindi only). */
     val tokensFile: String get() = "tokens_$code.txt"
 

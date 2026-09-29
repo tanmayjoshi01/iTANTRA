@@ -195,6 +195,10 @@ class SpeechViewModel(application: Application) : AndroidViewModel(application) 
         Transport.BLUETOOTH -> btSender.state.value.connected
     }
 
+    /** When each received message arrived (key: message id, or the raw line if it has none), for the UI. */
+    private val _receivedAt = MutableStateFlow<Map<String, Long>>(emptyMap())
+    val receivedAt: StateFlow<Map<String, Long>> = _receivedAt.asStateFlow()
+
     private fun speakNewMessages(messagesFlow: Flow<List<String>>) {
         viewModelScope.launch {
             var spoken = 0
@@ -210,6 +214,8 @@ class SpeechViewModel(application: Application) : AndroidViewModel(application) 
                         Log.i(TRANSPORT_TAG, "Receiver: duplicate id=${message.id} ignored")
                         return@forEach
                     }
+                    val key = message.id ?: line
+                    if (key !in _receivedAt.value) _receivedAt.value = _receivedAt.value + (key to System.currentTimeMillis())
                     val voice = voiceLanguage.value ?: message.language
                     Log.i(TRANSPORT_TAG, "Receiver: received type=${message.type} lang=${message.language.code} voice=${voice.code} text=\"${message.text}\"")
                     // The message's own type decides; the receiver's ALERT switch still forces alert mode.
