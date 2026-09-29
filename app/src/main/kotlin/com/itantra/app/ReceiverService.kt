@@ -103,6 +103,14 @@ object SosNotifier {
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle(context.getString(R.string.sos_notification_title))
             .setContentText(message.text)
+            .setStyle(
+                NotificationCompat.BigTextStyle().bigText(
+                    message.text + "\n" + (
+                        message.location?.let { context.getString(R.string.sos_notification_location, it.lat, it.lon) }
+                            ?: context.getString(R.string.sos_location_unavailable)
+                        ),
+                ),
+            )
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
