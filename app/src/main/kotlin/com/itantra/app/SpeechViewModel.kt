@@ -10,7 +10,6 @@ import com.itantra.app.link.BluetoothTextSender
 import com.itantra.app.link.Language
 import com.itantra.app.link.MessageType
 import com.itantra.app.link.PendingQueue
-import com.itantra.app.link.ReceiverAdvertiser
 import com.itantra.app.link.ReceiverBrowser
 import com.itantra.app.link.ReceiverTts
 import com.itantra.app.link.TextLines
@@ -27,7 +26,6 @@ import com.itantra.speechengine.stt.SpeechRecognizer
 import com.itantra.speechengine.vad.EnergyZcrVoiceActivityDetector
 import com.itantra.speechengine.vad.VoiceActivityDetector
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,6 +53,10 @@ class SpeechViewModel(application: Application) : AndroidViewModel(application) 
     private val _sourceModelInstalled = MutableStateFlow(isModelInstalled(Language.HI))
     val sourceModelInstalled: StateFlow<Boolean> = _sourceModelInstalled.asStateFlow()
 
+    /** Languages whose STT model is actually present on this phone (rechecked on each language switch). */
+    private val _installedLanguages = MutableStateFlow(installedLanguages())
+    val installedLanguagesFlow: StateFlow<Set<Language>> = _installedLanguages.asStateFlow()
+
     /**
      * The speech controller for [sourceLanguage]. Only one exists (and only one
      * model is loaded) at a time: switching language closes the old one first.
@@ -63,36 +65,38 @@ class SpeechViewModel(application: Application) : AndroidViewModel(application) 
     val controllerFlow: StateFlow<SpeechController> = _controller.asStateFlow()
     val controller: SpeechController get() = _controller.value
 
+    /** Phone B's receiving side lives in the process, not this screen, so it survives the UI closing. */
+    private val hub = ReceiverHub.get(application)
+
     /** Phone B role: receives recognized text over TCP. */
-    val receiver = TcpTextReceiver(viewModelScope, log = { Log.i(LINK_TAG, it) })
+    val receiver: TcpTextReceiver get() = hub.receiver
 
     /** Phone A role: sends each recognized utterance over TCP. */
     val sender = TcpTextSender(viewModelScope, log = { Log.i(LINK_TAG, it) })
 
     /** Phone B role: speaks each received message aloud. */
-    val tts = ReceiverTts(application)
+    val tts: ReceiverTts get() = hub.tts
 
     /** Phone B alert mode: received messages are spoken loudly and shown as an alert banner. */
-    val alertMode = MutableStateFlow(false)
+    val alertMode: MutableStateFlow<Boolean> get() = hub.alertMode
+
+    /** The received SOS shown until acknowledged (Phone B). */
+    val activeSos: StateFlow<TextMessage?> get() = hub.activeSos
+    val advertisedName: String get() = hub.advertisedName
+
+    fun acknowledgeSos() = hub.acknowledgeSos()
 
     /** Type given to every outgoing message from this phone (manual Send and STT results). */
     val outgoingMode = MutableStateFlow(MessageType.NORMAL)
 
-    /**
-     * Receiver voice: null = AUTO (speak each message in its own language). An
-     * explicit language only changes the VOICE used; the text is not translated.
-     */
-    val voiceLanguage = MutableStateFlow<Language?>(null)
-
     /** Second transport: Bluetooth Classic RFCOMM (Phone B receives, Phone A sends). */
-    val btReceiver = BluetoothTextReceiver(application, viewModelScope, log = { Log.i(TRANSPORT_TAG, it) })
+    val btReceiver: BluetoothTextReceiver get() = hub.btReceiver
     val btSender = BluetoothTextSender(application, viewModelScope, log = { Log.i(TRANSPORT_TAG, it) })
 
     /** Which transport recognized text is sent over, and which receiver the UI shows. Wi-Fi is the default. */
     val transport = MutableStateFlow(Transport.WIFI)
 
-    /** Wi-Fi discovery: Phone B advertises its receiver, Phone A browses for it. Manual IP stays as fallback. */
-    private val advertiser = ReceiverAdvertiser(application, log = { Log.i(LINK_TAG, it) })
+    /** Wi-Fi discovery: Phone B advertises its receiver (see [ReceiverHub]), Phone A browses for it. Manual IP stays as fallback. */
     val browser = ReceiverBrowser(application, log = { Log.i(LINK_TAG, it) })
 
     /** Messages waiting for a connection (persisted, so they survive an app restart). */
@@ -101,9 +105,6 @@ class SpeechViewModel(application: Application) : AndroidViewModel(application) 
     val pending: StateFlow<List<TextMessage>> = _pending.asStateFlow()
 
     init {
-        // Speak each newly received message once, in arrival order, whichever transport it came over.
-        speakNewMessages(receiver.state.map { it.messages })
-        speakNewMessages(btReceiver.state.map { it.messages })
         // One logcat line per new transcript entry, so device runs leave
         // measurable evidence (read by app/scripts/score_live_stt.py). Each new
         // non-blank recognized text is also sent (or queued) as an outgoing message.
@@ -120,20 +121,11 @@ class SpeechViewModel(application: Application) : AndroidViewModel(application) 
                         )
                         if (entry.result.text.isNotBlank()) {
                             Log.i(LINK_TAG, "STT transcript (${_sourceLanguage.value.code}): \"${entry.result.text}\"")
-                            sendOutgoing(entry.result.text)
+                            // Recognized by the selected language's own model, so it is in that language.
+                            send(entry.result.text, outgoingMode.value, _sourceLanguage.value)
                         }
                     }
                     logged = transcript.size
-                }
-            }
-        }
-        // Advertise the Wi-Fi receiver while it is listening or connected.
-        viewModelScope.launch {
-            receiver.state.map { it.status }.distinctUntilChanged().collect { status ->
-                when (status) {
-                    is TcpTextReceiver.Status.Listening -> advertiser.register(status.port, "iTANTRA ${Build.MODEL}")
-                    is TcpTextReceiver.Status.Connected -> Unit
-                    else -> advertiser.unregister()
                 }
             }
         }
@@ -155,8 +147,13 @@ class SpeechViewModel(application: Application) : AndroidViewModel(application) 
         controller.close()
         _sourceLanguage.value = language
         _sourceModelInstalled.value = isModelInstalled(language)
+        _installedLanguages.value = installedLanguages()
         _controller.value = createController(language)
-        Log.i(TAG, "Source language -> ${language.code}, model installed=${_sourceModelInstalled.value}")
+        Log.i(
+            LANG_TAG,
+            "selected=${language.code} requestedModel=${language.modelFile} installed=${_sourceModelInstalled.value}" +
+                if (_sourceModelInstalled.value) "" else " -> speech input disabled (typed text only)",
+        )
     }
 
     /**
@@ -165,16 +162,43 @@ class SpeechViewModel(application: Application) : AndroidViewModel(application) 
      * connected. Used by both manual Send and STT forwarding.
      */
     fun sendOutgoing(text: String) {
-        val message = TextMessage(outgoingMode.value, text, _sourceLanguage.value, newMessageId())
+        // Typed text is tagged by its script, so e.g. Hindi typed while Odia is selected is not mislabeled.
+        val language = Language.ofScript(text) ?: _sourceLanguage.value
+        if (language != _sourceLanguage.value) {
+            Log.i(LANG_TAG, "typed text is ${language.code} (selected ${_sourceLanguage.value.code}); tagged as ${language.code}")
+        }
+        send(text, outgoingMode.value, language)
+    }
+
+    /**
+     * Sends an SOS over the selected transport. If not connected it is queued
+     * ahead of other pending messages, and on Wi-Fi the first discovered
+     * receiver is connected to at once so it is delivered as soon as possible.
+     */
+    fun sendSos() {
+        Log.i(SOS_TAG, "SOS pressed (transport=${transport.value})")
+        send("SOS from ${Build.MODEL}", MessageType.SOS, _sourceLanguage.value)
+        if (transport.value == Transport.WIFI && sender.state.value.status !is TcpTextSender.Status.Connected &&
+            sender.state.value.status !is TcpTextSender.Status.Connecting
+        ) {
+            browser.state.value.found.firstOrNull()?.let {
+                Log.i(SOS_TAG, "not connected: connecting to discovered ${it.name} to deliver SOS")
+                sender.connect(it.host, it.port)
+            }
+        }
+    }
+
+    private fun send(text: String, type: MessageType, language: Language) {
+        val message = TextMessage(type, text, language, newMessageId())
         val line = TextLines.encode(message) ?: return
         val t = transport.value
         if (!isConnected(t)) {
             Log.i(TRANSPORT_TAG, "Outgoing message QUEUED (not connected): type=${message.type} lang=${message.language.code} text=\"$text\"")
-            pendingQueue.add(line)
+            pendingQueue.add(line, first = type == MessageType.SOS)
             _pending.value = pendingQueue.messages
             return
         }
-        Log.i(TRANSPORT_TAG, "Outgoing message: type=${message.type} lang=${message.language.code} text=\"$text\" via $t")
+        Log.i(TRANSPORT_TAG, "Outgoing message: type=${message.type} lang=${message.language.code} text=\"$text\" via $t line=\"$line\"")
         sendLine(t, line)
     }
 
@@ -195,38 +219,11 @@ class SpeechViewModel(application: Application) : AndroidViewModel(application) 
         Transport.BLUETOOTH -> btSender.state.value.connected
     }
 
-    /** When each received message arrived (key: message id, or the raw line if it has none), for the UI. */
-    private val _receivedAt = MutableStateFlow<Map<String, Long>>(emptyMap())
-    val receivedAt: StateFlow<Map<String, Long>> = _receivedAt.asStateFlow()
-
-    private fun speakNewMessages(messagesFlow: Flow<List<String>>) {
-        viewModelScope.launch {
-            var spoken = 0
-            val seenIds = HashSet<String>()
-            messagesFlow.distinctUntilChanged().collect { messages ->
-                if (messages.size < spoken) {
-                    spoken = 0 // received list cleared
-                    seenIds.clear()
-                }
-                messages.drop(spoken).forEach { line ->
-                    val message = TextLines.decode(line)
-                    if (message.id != null && !seenIds.add(message.id)) {
-                        Log.i(TRANSPORT_TAG, "Receiver: duplicate id=${message.id} ignored")
-                        return@forEach
-                    }
-                    val key = message.id ?: line
-                    if (key !in _receivedAt.value) _receivedAt.value = _receivedAt.value + (key to System.currentTimeMillis())
-                    val voice = voiceLanguage.value ?: message.language
-                    Log.i(TRANSPORT_TAG, "Receiver: received type=${message.type} lang=${message.language.code} voice=${voice.code} text=\"${message.text}\"")
-                    // The message's own type decides; the receiver's ALERT switch still forces alert mode.
-                    tts.speak(message.text, alert = message.type == MessageType.ALERT || alertMode.value, language = voice)
-                }
-                spoken = messages.size
-            }
-        }
-    }
+    val receivedAt: StateFlow<Map<String, Long>> get() = hub.receivedAt
 
     private fun isModelInstalled(language: Language): Boolean = filesDir?.let { File(it, language.modelFile).exists() } == true
+
+    private fun installedLanguages(): Set<Language> = Language.entries.filter(::isModelInstalled).toSet()
 
     private fun createController(language: Language) = SpeechController(
         audioSourceFactory = { AudioRecorderFrameSource() },
@@ -238,18 +235,17 @@ class SpeechViewModel(application: Application) : AndroidViewModel(application) 
     override fun onCleared() {
         controller.close()
         sender.close()
-        receiver.stop()
-        advertiser.unregister()
         browser.stop()
         btSender.close()
-        btReceiver.stop()
-        tts.shutdown()
+        // Receivers and TTS belong to ReceiverHub: they keep running (with the foreground service) after the UI closes.
     }
 
     private companion object {
         const val TAG = "SpeechViewModel"
         const val LINK_TAG = "TcpTextLink"
         const val TRANSPORT_TAG = "TextTransport"
+        const val LANG_TAG = "LanguageModel"
+        const val SOS_TAG = "Sos"
         const val PENDING_FILE_NAME = "pending_messages.txt"
 
         // Enable with `adb shell setprop log.tag.VadDiag DEBUG` (checked at each
@@ -280,12 +276,19 @@ class SpeechViewModel(application: Application) : AndroidViewModel(application) 
             // A language-specific token list if provided; otherwise the shared one (verified for Hindi only).
             val tokensFile = File(dir, language.tokensFile).takeIf { it.exists() } ?: File(dir, SHARED_TOKENS_FILE_NAME)
             val startNs = System.nanoTime()
-            val recognizer = IndicConformerRecognizer(modelFile, tokensFile)
+            Log.i(LANG_TAG, "loading STT model: lang=${language.code} requested=${modelFile.name} exists=${modelFile.exists()}")
+            val recognizer = try {
+                IndicConformerRecognizer(modelFile, tokensFile)
+            } catch (e: Exception) {
+                Log.w(LANG_TAG, "STT model load FAILED: lang=${language.code} file=${modelFile.name}: $e")
+                throw e
+            }
             Log.i(
                 TAG,
                 "Model loaded: lang=${language.code} file=${modelFile.name} bytes=${modelFile.length()} " +
                     "tokens=${tokensFile.name} loadTimeMs=${(System.nanoTime() - startNs) / 1_000_000}",
             )
+            Log.i(LANG_TAG, "STT model loaded OK: lang=${language.code} file=${modelFile.name} tokens=${tokensFile.name}")
             return recognizer
         }
     }

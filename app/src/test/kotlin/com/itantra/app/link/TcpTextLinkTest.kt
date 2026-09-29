@@ -122,4 +122,16 @@ class TcpTextLinkTest {
             awaitMessages(2).map(TextLines::decode),
         )
     }
+
+    @Test
+    fun sosAlertAndNormal_keepTheirTypeOverTcp() {
+        connect(startReceiver())
+        val sent = listOf(
+            TextMessage(MessageType.NORMAL, "नमस्ते", Language.HI, "n1"),
+            TextMessage(MessageType.ALERT, "मदद चाहिए", Language.HI, "a1"),
+            TextMessage(MessageType.SOS, "SOS from CPH2613", Language.HI, "s1"),
+        )
+        sent.forEach { TextLines.encode(it)?.let(sender::send) }
+        assertEquals(sent, awaitMessages(3).map(TextLines::decode))
+    }
 }

@@ -7,7 +7,9 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
@@ -17,6 +19,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +37,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -102,6 +106,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        showOverLockScreenIfSos(intent)
         // The theme is always light, so keep system bar icons dark regardless of the system dark mode.
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
@@ -113,7 +118,8 @@ class MainActivity : ComponentActivity() {
             val state by controller.state.collectAsState()
             val sourceLanguage by viewModel.sourceLanguage.collectAsState()
             val sourceModelInstalled by viewModel.sourceModelInstalled.collectAsState()
-            val voiceLanguage by viewModel.voiceLanguage.collectAsState()
+            val installedLanguages by viewModel.installedLanguagesFlow.collectAsState()
+            val activeSos by viewModel.activeSos.collectAsState()
             val pending by viewModel.pending.collectAsState()
             val browserState by viewModel.browser.state.collectAsState()
             val senderState by viewModel.sender.state.collectAsState()
@@ -143,6 +149,25 @@ class MainActivity : ComponentActivity() {
                     btPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT)
                 }
             }
+            // The SOS notification works only if notifications are allowed (runtime permission on Android 13+).
+            // Asked when a receiver is started; the receiver starts either way.
+            var afterNotificationPrompt by remember { mutableStateOf<(() -> Unit)?>(null) }
+            val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission(),
+            ) { _ ->
+                afterNotificationPrompt?.invoke()
+                afterNotificationPrompt = null
+            }
+            val withNotifications: (() -> Unit) -> Unit = { action ->
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                    checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                ) {
+                    action()
+                } else {
+                    afterNotificationPrompt = action
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
             val bt = BtUi(
                 sender = btSenderState,
                 receiver = btReceiverState,
@@ -150,7 +175,7 @@ class MainActivity : ComponentActivity() {
                 onConnect = { device -> withBt { viewModel.btSender.connect(device) } },
                 onDisconnect = { viewModel.btSender.disconnect() },
                 onSend = { viewModel.sendOutgoing(it) },
-                onStartReceiver = { withBt { viewModel.btReceiver.start() } },
+                onStartReceiver = { withNotifications { withBt { viewModel.btReceiver.start() } } },
                 onStopReceiver = viewModel.btReceiver::stop,
                 onClearReceived = viewModel.btReceiver::clearMessages,
                 onEnableBluetooth = { withBt { enableBluetooth() } },
@@ -162,6 +187,14 @@ class MainActivity : ComponentActivity() {
                 if (granted) controller.start() else controller.onPermissionDenied()
             }
             ItantraTheme {
+                val sos = activeSos
+                if (sos != null) {
+                    SosScreen(sos, onAcknowledge = {
+                        viewModel.acknowledgeSos()
+                        clearShowOverLockScreen()
+                    })
+                    return@ItantraTheme
+                }
                 AppScreen(
                     tab = tab,
                     onTab = { tab = it },
@@ -170,7 +203,7 @@ class MainActivity : ComponentActivity() {
                     onDisconnect = { viewModel.sender.disconnect() },
                     onSendText = { viewModel.sendOutgoing(it) },
                     receiverState = receiverState,
-                    onStartReceiver = viewModel.receiver::start,
+                    onStartReceiver = { withNotifications { viewModel.receiver.start() } },
                     onStopReceiver = viewModel.receiver::stop,
                     onClearReceived = viewModel.receiver::clearMessages,
                     ttsState = ttsState,
@@ -184,8 +217,7 @@ class MainActivity : ComponentActivity() {
                         source = sourceLanguage,
                         modelInstalled = sourceModelInstalled,
                         onSource = viewModel::selectSourceLanguage,
-                        voice = voiceLanguage,
-                        onVoice = { viewModel.voiceLanguage.value = it },
+                        installed = installedLanguages,
                         pending = pending,
                         discovery = browserState,
                         onFindReceivers = viewModel.browser::start,
@@ -194,6 +226,10 @@ class MainActivity : ComponentActivity() {
                     outgoingMode = outgoingMode,
                     onOutgoingMode = { viewModel.outgoingMode.value = it },
                     receivedAt = receivedAt,
+                    onSos = viewModel::sendSos,
+                    advertisedName = viewModel.advertisedName,
+                    fullScreenSosAllowed = SosNotifier.canUseFullScreenIntent(this@MainActivity),
+                    onAllowFullScreenSos = ::openFullScreenIntentSettings,
                     state = state,
                     onStart = {
                         if (hasMicrophonePermission()) {
@@ -206,6 +242,37 @@ class MainActivity : ComponentActivity() {
                     onClearTranscript = controller::clearTranscript,
                 )
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        showOverLockScreenIfSos(intent)
+    }
+
+    /** Opened from the SOS notification: show over the lock screen and turn the screen on. */
+    private fun showOverLockScreenIfSos(intent: Intent?) {
+        if (intent?.getBooleanExtra(Notifications.EXTRA_SOS, false) != true) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
+    }
+
+    private fun clearShowOverLockScreen() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(false)
+            setTurnScreenOn(false)
+        }
+    }
+
+    /** Android 14+: the user decides whether this app may show full-screen notifications. */
+    private fun openFullScreenIntentSettings() {
+        if (Build.VERSION.SDK_INT < 34) return
+        try {
+            startActivity(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:$packageName")))
+        } catch (_: ActivityNotFoundException) {
         }
     }
 
@@ -265,6 +332,10 @@ private fun AppScreen(
     outgoingMode: MessageType,
     onOutgoingMode: (MessageType) -> Unit,
     receivedAt: Map<String, Long>,
+    onSos: () -> Unit,
+    advertisedName: String,
+    fullScreenSosAllowed: Boolean,
+    onAllowFullScreenSos: () -> Unit,
     state: SpeechState,
     onStart: () -> Unit,
     onStop: () -> Unit,
@@ -297,12 +368,13 @@ private fun AppScreen(
                 if (tab == Tab.SpeakAndSend) {
                     SpeakAndSendScreen(
                         link, transport, onTransport, senderState, onConnect, onDisconnect, onSendText, bt, lang,
-                        outgoingMode, onOutgoingMode, state, onStart, onStop, onClearTranscript,
+                        outgoingMode, onOutgoingMode, onSos, state, onStart, onStop, onClearTranscript,
                     )
                 } else {
                     ReceiveScreen(
                         receiverView, transport, onTransport, bt, onStartReceiver, onStopReceiver, onClearReceived,
-                        ttsState, alertMode, onAlertMode, onInstallHindi, lang, receivedAt,
+                        ttsState, alertMode, onAlertMode, onInstallHindi, receivedAt,
+                        advertisedName, fullScreenSosAllowed, onAllowFullScreenSos,
                     )
                 }
                 Spacer(Modifier.height(24.dp))
@@ -344,6 +416,7 @@ private fun SpeakAndSendScreen(
     lang: LangUi,
     outgoingMode: MessageType,
     onOutgoingMode: (MessageType) -> Unit,
+    onSos: () -> Unit,
     state: SpeechState,
     onStart: () -> Unit,
     onStop: () -> Unit,
@@ -373,6 +446,9 @@ private fun SpeakAndSendScreen(
         }
     }
 
+    // SOS: one tap, over the selected transport (queued first and auto-connected if needed).
+    SosButton(onSos)
+
     // 2. Message mode
     SectionCard(title = stringResource(R.string.sec_message_mode)) {
         Segmented(
@@ -390,7 +466,7 @@ private fun SpeakAndSendScreen(
 
     // 3. Language
     SectionCard(title = stringResource(R.string.sec_i_speak)) {
-        LanguageChips(selected = lang.source, onSelect = { if (!state.isListening) lang.onSource(it) })
+        LanguageChips(selected = lang.source, installed = lang.installed, onSelect = { if (!state.isListening) lang.onSource(it) })
         if (!lang.modelInstalled) {
             Text(
                 stringResource(R.string.model_unavailable_friendly, lang.source.displayName),
@@ -452,9 +528,13 @@ private fun SpeakAndSendScreen(
         SectionCard(title = stringResource(R.string.sec_pending), accent = ItantraColors.Pending) {
             lang.pending.forEach { m ->
                 Text(
-                    if (m.type == MessageType.ALERT) stringResource(R.string.sos_pending, m.text) else stringResource(R.string.message_pending, m.text),
-                    color = if (m.type == MessageType.ALERT) ItantraColors.Alert else ItantraColors.Pending,
-                    fontWeight = if (m.type == MessageType.ALERT) FontWeight.Bold else FontWeight.Normal,
+                    when (m.type) {
+                        MessageType.SOS -> stringResource(R.string.sos_pending, m.text)
+                        MessageType.ALERT -> stringResource(R.string.alert_pending, m.text)
+                        MessageType.NORMAL -> stringResource(R.string.message_pending, m.text)
+                    },
+                    color = if (m.type == MessageType.NORMAL) ItantraColors.Pending else ItantraColors.Alert,
+                    fontWeight = if (m.type == MessageType.SOS) FontWeight.Bold else FontWeight.Normal,
                 )
             }
             Text(stringResource(R.string.pending_caption), style = MaterialTheme.typography.bodySmall, color = ItantraColors.Muted)
@@ -627,8 +707,10 @@ private fun ReceiveScreen(
     alertMode: Boolean,
     onAlertMode: (Boolean) -> Unit,
     onInstallHindi: () -> Unit,
-    lang: LangUi,
     receivedAt: Map<String, Long>,
+    advertisedName: String,
+    fullScreenSosAllowed: Boolean,
+    onAllowFullScreenSos: () -> Unit,
 ) {
     val onStart = if (transport == Transport.WIFI) onStartWifi else bt.onStartReceiver
     val onStop = if (transport == Transport.WIFI) onStopWifi else bt.onStopReceiver
@@ -648,6 +730,20 @@ private fun ReceiveScreen(
             ok = view.running,
             error = view.failed,
         )
+        if (view.running) {
+            Text(
+                stringResource(
+                    if (transport == Transport.WIFI) R.string.visible_as_wifi else R.string.visible_as_bt,
+                    advertisedName,
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = ItantraColors.Success,
+            )
+            Text(stringResource(R.string.background_hint), style = MaterialTheme.typography.bodySmall, color = ItantraColors.Muted)
+        }
+        if (!fullScreenSosAllowed) {
+            OutlinedButton(onClick = onAllowFullScreenSos) { Text(stringResource(R.string.allow_full_screen_sos)) }
+        }
         if (transport == Transport.BLUETOOTH && bt.receiver.status.contains("OFF")) {
             Button(onClick = bt.onEnableBluetooth) { Text(stringResource(R.string.turn_on_bluetooth)) }
         } else if (view.running) {
@@ -661,23 +757,25 @@ private fun ReceiveScreen(
 
     // 2. Emergency alert (latest message, if it is an alert)
     val latest = messages.lastOrNull()
-    AnimatedVisibility(visible = latest != null && (latest.type == MessageType.ALERT || alertMode)) {
+    AnimatedVisibility(visible = latest != null && (latest.type != MessageType.NORMAL || alertMode)) {
         if (latest != null) AlertCard(latest)
     }
 
-    // 3. Voice
-    SectionCard(title = stringResource(R.string.sec_voice)) {
+    // 3. Playback language. There is no translation, so a message can only be
+    // played in the language it was received in; the other choices are shown as unavailable.
+    SectionCard(title = stringResource(R.string.sec_playback)) {
+        Text(stringResource(R.string.playback_same_as_received), style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            FilterChip(selected = lang.voice == null, onClick = { lang.onVoice(null) }, label = { Text(stringResource(R.string.voice_auto)) })
             Language.entries.forEach { l ->
                 FilterChip(
-                    selected = lang.voice == l,
-                    onClick = { lang.onVoice(l) },
-                    label = { Text(if (tts.voices[l] == false) "${l.nativeName} ✗" else l.nativeName) },
+                    selected = tts.voices[l] == true,
+                    onClick = {},
+                    enabled = false,
+                    label = { Text("${l.nativeName} ${if (tts.voices[l] == true) "✓" else "✗"}") },
                 )
             }
         }
-        Text(stringResource(R.string.voice_caption), style = MaterialTheme.typography.bodySmall, color = ItantraColors.Muted)
+        Text(stringResource(R.string.playback_caption), style = MaterialTheme.typography.bodySmall, color = ItantraColors.Muted)
         if (tts.speaking) {
             Text(stringResource(R.string.speaking), style = MaterialTheme.typography.titleMedium, color = ItantraColors.Primary)
         }
@@ -727,7 +825,9 @@ private fun AlertCard(message: TextMessage) {
             .semantics { contentDescription = "Emergency alert: ${message.text}" },
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(stringResource(R.string.emergency_alert), color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(if (message.type == MessageType.SOS) R.string.sos_received_title else R.string.emergency_alert),
+                color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(message.text, color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
             Text(
                 stringResource(R.string.alert_meta, message.language.nativeName),
@@ -740,7 +840,7 @@ private fun AlertCard(message: TextMessage) {
 
 @Composable
 private fun MessageCard(m: TextMessage, time: Long?) {
-    val alert = m.type == MessageType.ALERT
+    val alert = m.type != MessageType.NORMAL
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = if (alert) ItantraColors.AlertContainer else ItantraColors.SurfaceVariant,
@@ -748,7 +848,9 @@ private fun MessageCard(m: TextMessage, time: Long?) {
     ) {
         Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             if (alert) {
-                Text(stringResource(R.string.alert_label), color = ItantraColors.Alert, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Text(
+                    stringResource(if (m.type == MessageType.SOS) R.string.sos_label else R.string.alert_label),
+                    color = ItantraColors.Alert, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
             }
             Text(
                 m.text,
@@ -757,7 +859,7 @@ private fun MessageCard(m: TextMessage, time: Long?) {
             )
             val timeText = time?.let { DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it)) }
             Text(
-                listOfNotNull(m.language.nativeName, timeText).joinToString("  ·  "),
+                listOfNotNull(stringResource(R.string.received_in, m.language.nativeName), timeText).joinToString("  ·  "),
                 style = MaterialTheme.typography.bodySmall,
                 color = ItantraColors.Muted,
             )
@@ -837,11 +939,107 @@ private fun TransportSelector(transport: Transport, onTransport: (Transport) -> 
     )
 }
 
+/**
+ * Transmission-language selector: equal-width tiles of fixed height (the
+ * native name, and whether speech input or only typed text is available), so
+ * the options stay aligned on narrow phones. State and selection logic unchanged.
+ */
 @Composable
-private fun LanguageChips(selected: Language, onSelect: (Language) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+private fun LanguageChips(selected: Language, installed: Set<Language>, onSelect: (Language) -> Unit) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth().selectableGroup(),
+    ) {
         Language.entries.forEach { l ->
-            FilterChip(selected = selected == l, onClick = { onSelect(l) }, label = { Text(l.nativeName) })
+            val isSelected = selected == l
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = if (isSelected) ItantraColors.PrimaryContainer else MaterialTheme.colorScheme.surface,
+                border = BorderStroke(
+                    if (isSelected) 2.dp else 1.dp,
+                    if (isSelected) ItantraColors.Primary else ItantraColors.SurfaceVariant,
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(64.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .selectable(selected = isSelected, role = Role.RadioButton, onClick = { onSelect(l) }),
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                ) {
+                    Text(
+                        if (isSelected) "✓ ${l.nativeName}" else l.nativeName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        color = if (isSelected) ItantraColors.PrimaryDark else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        stringResource(if (l in installed) R.string.lang_speech else R.string.text_only),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (l in installed) ItantraColors.Success else ItantraColors.Muted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SosButton(onSos: () -> Unit) {
+    val description = stringResource(R.string.sos_button_description)
+    Button(
+        onClick = onSos,
+        colors = ButtonDefaults.buttonColors(containerColor = ItantraColors.Alert),
+        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(76.dp)
+            .semantics { contentDescription = description },
+    ) {
+        Text(stringResource(R.string.sos_button), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+    }
+}
+
+/** Full-screen SOS state on the receiver: covers the whole UI until acknowledged. */
+@Composable
+private fun SosScreen(message: TextMessage, onAcknowledge: () -> Unit) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            .background(ItantraColors.Alert)
+            .padding(24.dp),
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth(),
+        ) {
+            Text("🚨", style = MaterialTheme.typography.displayLarge)
+            Text("SOS", color = Color.White, style = MaterialTheme.typography.displayLarge, fontWeight = FontWeight.Black)
+            Text(
+                stringResource(R.string.sos_received),
+                color = Color.White,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(message.text, color = Color.White, style = MaterialTheme.typography.titleLarge, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(24.dp))
+            Button(
+                onClick = onAcknowledge,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = ItantraColors.AlertDark),
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth().height(72.dp),
+            ) {
+                Text(stringResource(R.string.acknowledge_sos), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -972,7 +1170,7 @@ private fun senderLink(transport: Transport, tcp: TcpTextSender.State, bt: BtUi,
 @Composable
 private fun deliveryStatus(text: String, pending: List<TextMessage>, link: SenderLink): Pair<String, Color> = when {
     pending.any { it.text == text } -> {
-        val sos = pending.any { it.text == text && it.type == MessageType.ALERT }
+        val sos = pending.any { it.text == text && it.type != MessageType.NORMAL }
         stringResource(if (sos) R.string.delivery_sos_pending else R.string.delivery_pending) to
             (if (sos) ItantraColors.Alert else ItantraColors.Pending)
     }
@@ -1077,8 +1275,7 @@ private class LangUi(
     val source: Language,
     val modelInstalled: Boolean,
     val onSource: (Language) -> Unit,
-    val voice: Language?,
-    val onVoice: (Language?) -> Unit,
+    val installed: Set<Language>,
     val pending: List<TextMessage>,
     val discovery: ReceiverBrowser.State,
     val onFindReceivers: () -> Unit,

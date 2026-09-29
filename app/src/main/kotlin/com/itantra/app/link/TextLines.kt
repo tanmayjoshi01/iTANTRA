@@ -2,7 +2,8 @@ package com.itantra.app.link
 
 import java.io.BufferedReader
 
-enum class MessageType { NORMAL, ALERT }
+/** SOS is a dedicated emergency call: the receiver shows a full-screen SOS and sounds an alarm until acknowledged. */
+enum class MessageType { NORMAL, ALERT, SOS }
 
 /**
  * One logical message, carried identically over Wi-Fi TCP and Bluetooth RFCOMM.
@@ -20,11 +21,11 @@ data class TextMessage(
  * Wire format: one UTF-8 line per message:
  *   "[TYPE] text"                      (Hindi, no id: the original format)
  *   "[TYPE|lang|id=xxxxxxxx] text"     e.g. "[ALERT|as|id=1a2b3c4d] নমস্কাৰ"
- * TYPE is ALERT or NORMAL. Unknown metadata parts are ignored. A line that does
+ * TYPE is NORMAL, ALERT or SOS. Unknown metadata parts are ignored. A line that does
  * not match is a NORMAL Hindi message whose text is the whole line.
  */
 object TextLines {
-    private val HEADER = Regex("""^\[(ALERT|NORMAL)(\|[^\]]*)?\] (.*)$""")
+    private val HEADER = Regex("""^\[(ALERT|NORMAL|SOS)(\|[^\]]*)?\] (.*)$""")
 
     /** The line for [message], or null if its text is blank. */
     fun encode(message: TextMessage): String? {

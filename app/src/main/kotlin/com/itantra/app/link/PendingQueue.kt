@@ -24,8 +24,9 @@ class PendingQueue(private val file: File?) {
 
     val messages: List<TextMessage> get() = lines.map(TextLines::decode)
 
-    fun add(line: String) {
-        lines += line
+    /** Queues [line]; [first] puts it ahead of everything already waiting (used for SOS). */
+    fun add(line: String, first: Boolean = false) {
+        if (first) lines.add(0, line) else lines += line
         persist()
     }
 

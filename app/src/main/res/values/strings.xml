@@ -95,7 +95,7 @@
     <string name="mode_alert_ui">🚨 ALERT</string>
     <string name="mode_normal_caption">Regular message, spoken at normal volume.</string>
     <string name="mode_alert_caption">Emergency: spoken loudly on the receiver and shown as an alert.</string>
-    <string name="sec_i_speak">I speak</string>
+    <string name="sec_i_speak">Transmission language</string>
     <string name="model_unavailable_friendly">%1$s speech recognition is not installed on this device. You can still type messages.</string>
     <string name="ptt_hint">Hold to speak</string>
     <string name="ptt_speaking">SPEAKING… release to send</string>
@@ -143,4 +143,27 @@
     <string name="diag_tts">TTS</string>
     <string name="diag_tts_latency">TTS start latency</string>
     <string name="diag_voices">Voices</string>
+    <!-- SOS and honest language UI -->
+    <string name="sos_button">🚨 SOS</string>
+    <string name="sos_button_description">Send SOS emergency call</string>
+    <string name="sos_received">SOS RECEIVED</string>
+    <string name="sos_received_title">🚨 SOS RECEIVED</string>
+    <string name="sos_label">🚨 SOS</string>
+    <string name="acknowledge_sos">ACKNOWLEDGE SOS</string>
+    <string name="alert_pending">⚠ ALERT pending: %1$s</string>
+    <string name="sos_notification_title">🚨 SOS RECEIVED</string>
+    <string name="channel_sos">SOS alerts</string>
+    <string name="channel_receiver">Receiver running</string>
+    <string name="receiver_notification_title">iTANTRA receiver is on</string>
+    <string name="receiver_notification_text">Listening for messages and SOS</string>
+    <string name="visible_as_wifi">● Available to nearby phones as “%1$s”</string>
+    <string name="visible_as_bt">● Available over Bluetooth to paired phones</string>
+    <string name="background_hint">Keeps receiving (including SOS) when you leave the app.</string>
+    <string name="allow_full_screen_sos">Allow full-screen SOS alerts</string>
+    <string name="text_only">Text only</string>
+    <string name="lang_speech">🎤 Speech</string>
+    <string name="received_in">Received in %1$s</string>
+    <string name="sec_playback">Playback language</string>
+    <string name="playback_same_as_received">Same as received language</string>
+    <string name="playback_caption">Translation is not installed, so each message is played in the language it was received in. ✓ = voice available on this device.</string>
 </resources>
