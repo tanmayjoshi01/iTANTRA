@@ -134,4 +134,16 @@ class TcpTextLinkTest {
         sent.forEach { TextLines.encode(it)?.let(sender::send) }
         assertEquals(sent, awaitMessages(3).map(TextLines::decode))
     }
+
+    @Test
+    fun sosWithLocation_arrivesIntactOverTcp() {
+        connect(startReceiver())
+        val sos = TextMessage(
+            MessageType.SOS, "SOS: तुरंत मदद चाहिए (CPH2613)", Language.HI, "l1",
+            GeoFix(16.991248, 73.309049, 1_790_000_000_000, 13), 1_790_000_001_000,
+        )
+        TextLines.encode(sos)?.let(sender::send)
+        sender.send("[NORMAL|hi|id=n2] नमस्ते")
+        assertEquals(listOf(sos, TextMessage(MessageType.NORMAL, "नमस्ते", Language.HI, "n2")), awaitMessages(2).map(TextLines::decode))
+    }
 }
