@@ -1,6 +1,6 @@
 # iTANTRA
 
-**Emergency Voice Communication over Low-Bandwidth and Intermittent Links**
+**Offline Emergency Voice Communication over Low-Bandwidth and Intermittent Links**
 
 Smart India Hackathon 2026 · Problem Statement **SIH26173** · Indian Space Research Organisation (ISRO), Department of Space · Category: Software · Theme: Smart Automation
 
