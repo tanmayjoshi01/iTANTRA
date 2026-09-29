@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.itantra.app.link.BluetoothTextReceiver
 import com.itantra.app.link.BluetoothTextSender
+import com.itantra.app.link.GeoFix
 import com.itantra.app.link.Language
 import com.itantra.app.link.MessageType
 import com.itantra.app.link.PendingQueue
@@ -185,10 +186,38 @@ class SpeechViewModel(application: Application) : AndroidViewModel(application) 
      * ahead of other pending messages, and on Wi-Fi the first discovered
      * receiver is connected to at once so it is delivered as soon as possible.
      */
+    /** Phone A's SOS send progress, for the small status under the SOS button. */
+    sealed interface SosSendState {
+        data object Idle : SosSendState
+
+        data object Locating : SosSendState
+
+        /** Sent (or queued, if not connected), with the attached location or why there is none. */
+        data class Sent(val location: GeoFix?, val noLocationReason: String?, val queued: Boolean) : SosSendState
+    }
+
+    private val _sosSendState = MutableStateFlow<SosSendState>(SosSendState.Idle)
+    val sosSendState: StateFlow<SosSendState> = _sosSendState.asStateFlow()
+    private val sosLocator = SosLocator(application)
+    private var lastSosSentAt = 0L
+
+    /**
+     * Sends an SOS with this phone's location if one can be had within a few
+     * seconds, otherwise without (never with invented coordinates). Goes over
+     * the selected transport; if not connected it is queued ahead of other
+     * pending messages, and on Wi-Fi the first discovered receiver is
+     * connected to at once. Taps while locating, or within [SOS_LOCK_MS] of
+     * the last SOS, are ignored so one press sends one SOS.
+     */
     fun sendSos() {
+        val now = System.currentTimeMillis()
+        if (_sosSendState.value == SosSendState.Locating || now - lastSosSentAt < SOS_LOCK_MS) {
+            Log.i(SOS_TAG, "SOS tap ignored (already sending)")
+            return
+        }
         Log.i(SOS_TAG, "SOS pressed (transport=${transport.value})")
-        // Hindi text (tagged Hindi), so a receiver can translate and speak it.
-        send("SOS: तुरंत मदद चाहिए (${Build.MODEL})", MessageType.SOS, Language.HI)
+        _sosSendState.value = SosSendState.Locating
+        // Start connecting while the location is looked up.
         if (transport.value == Transport.WIFI && sender.state.value.status !is TcpTextSender.Status.Connected &&
             sender.state.value.status !is TcpTextSender.Status.Connecting
         ) {
@@ -197,20 +226,43 @@ class SpeechViewModel(application: Application) : AndroidViewModel(application) 
                 sender.connect(it.host, it.port)
             }
         }
+        viewModelScope.launch {
+            val startNs = System.nanoTime()
+            val result = sosLocator.locate()
+            val fix = (result as? SosLocator.Result.Found)?.fix
+            val reason = (result as? SosLocator.Result.Unavailable)?.reason
+            Log.i(
+                SOS_TAG,
+                "SOS location after ${(System.nanoTime() - startNs) / 1_000_000}ms: " +
+                    (fix?.let { "${it.latLon} acc=${it.accuracyM}m fix=${it.fixTimeMs} (${(result as SosLocator.Result.Found).source})" } ?: "none ($reason)"),
+            )
+            // Hindi text (tagged Hindi), so a receiver can translate and speak it.
+            val sent = send("SOS: तुरंत मदद चाहिए (${Build.MODEL})", MessageType.SOS, Language.HI, fix, System.currentTimeMillis())
+            lastSosSentAt = System.currentTimeMillis()
+            _sosSendState.value = SosSendState.Sent(fix, reason, queued = !sent)
+        }
     }
 
-    private fun send(text: String, type: MessageType, language: Language) {
-        val message = TextMessage(type, text, language, newMessageId())
-        val line = TextLines.encode(message) ?: return
+    /** Sends now if the selected transport is connected (true), otherwise queues (false). */
+    private fun send(
+        text: String,
+        type: MessageType,
+        language: Language,
+        location: GeoFix? = null,
+        sentAtMs: Long? = null,
+    ): Boolean {
+        val message = TextMessage(type, text, language, newMessageId(), location, sentAtMs)
+        val line = TextLines.encode(message) ?: return false
         val t = transport.value
         if (!isConnected(t)) {
-            Log.i(TRANSPORT_TAG, "Outgoing message QUEUED (not connected): type=${message.type} lang=${message.language.code} text=\"$text\"")
+            Log.i(TRANSPORT_TAG, "Outgoing message QUEUED (not connected): type=${message.type} lang=${message.language.code} line=\"$line\"")
             pendingQueue.add(line, first = type == MessageType.SOS)
             _pending.value = pendingQueue.messages
-            return
+            return false
         }
         Log.i(TRANSPORT_TAG, "Outgoing message: type=${message.type} lang=${message.language.code} text=\"$text\" via $t line=\"$line\"")
         sendLine(t, line)
+        return true
     }
 
     private fun flushPending(t: Transport) {
@@ -257,6 +309,7 @@ class SpeechViewModel(application: Application) : AndroidViewModel(application) 
         const val TRANSPORT_TAG = "TextTransport"
         const val LANG_TAG = "LanguageModel"
         const val SOS_TAG = "Sos"
+        const val SOS_LOCK_MS = 3_000L
         const val PENDING_FILE_NAME = "pending_messages.txt"
 
         // Enable with `adb shell setprop log.tag.VadDiag DEBUG` (checked at each
